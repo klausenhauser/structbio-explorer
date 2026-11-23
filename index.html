@@ -24,7 +24,16 @@ a.card strong{font:600 1.05rem var(--display)}
 a.card p{margin:4px 0 6px;color:var(--muted);font-size:.92rem}
 a.card code{font:12px var(--mono);color:var(--c)}
 .soon{margin-top:16px;color:var(--muted);font-style:italic;font-size:.92rem}
-footer{margin-top:48px;color:var(--muted);font:12px var(--mono)}
+footer{margin-top:48px;color:var(--muted);font:12px/1.7 var(--mono)}
+footer a{color:var(--fg)}
+.about{margin-top:48px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+.about h2{font:700 1.3rem var(--display);margin:0 0 12px}
+.about dl{display:grid;grid-template-columns:max-content 1fr;gap:10px 18px;margin:0;font-size:.92rem}
+.about dt{font:600 .92rem var(--display)}
+.about dd{margin:0;color:var(--muted)}
+.about dd b{color:var(--fg);font-weight:500}
+.about a{color:var(--fg)}
+@media (max-width:640px){.about dl{grid-template-columns:1fr}.about dt{margin-top:6px}}
 </style></head><body>
 <h1>Structural Biology Explorer</h1>
 <p class="lede">Interactive, in-browser walkthroughs of the three main methods for solving macromolecular structures. Each page runs fully in your browser and uses public reference data.</p>
@@ -36,5 +45,13 @@ footer{margin-top:48px;color:var(--muted);font:12px var(--mono)}
 <section style="--c:var(--nmr)"><span class="tag">Spectroscopy</span><h2>NMR</h2>
 <a class="card" href="nmr/"><strong>Ubiquitin at 800 MHz</strong><p>Drive a triple-resonance pulse sequence and walk the backbone through the resulting spectra.</p><code>PDB 1UBQ · BMRB 6457 · UniProt P0CG48</code></a></section>
 </div>
-<footer>v1.2 · Built for teaching. Structures and data from the PDB, BMRB and proteindiffraction.org.</footer>
+<section class="about" aria-labelledby="src"><h2 id="src">Where the data come from</h2>
+<dl>
+<dt style="color:var(--x)">X-ray</dt><dd><b>Real data.</b> Raw EIGER 16M diffraction frames from the dataset deposited with PDB <a href="https://www.rcsb.org/structure/9QBT">9QBT</a> (KEAP1), collected at SLS X06SA (PXI); raw data <a href="https://doi.org/10.18430/M39QBT">doi:10.18430/M39QBT</a> (proteindiffraction.org). Geometry and spot predictions from the deposited XDS files. The beamline model and Ewald-sphere view are simulated.</dd>
+<dt style="color:var(--em)">Cryo-EM</dt><dd><b>Simulated images.</b> Atlas, squares, holes and micrographs (CTF, dose, noise) are computed in your browser. Particles are built from PDB <a href="https://www.rcsb.org/structure/5A1A">5A1A</a>, <i>E. coli</i> β-galactosidase (UniProt P00722; Bartesaghi et al., <i>Science</i> 2015).</dd>
+<dt style="color:var(--nmr)">NMR</dt><dd><b>Simulated spectra</b> computed from real assigned chemical shifts: BMRB <a href="https://bmrb.io/data_library/summary/index.php?bmrbId=6457">6457</a> (Cornilescu et al., <i>JACS</i> 1998), human ubiquitin (UniProt P0CG48); structure from PDB <a href="https://www.rcsb.org/structure/1UBQ">1UBQ</a>.</dd>
+</dl></section>
+<footer>v1.3 · Made with <a href="https://claude.ai">Claude</a> (Anthropic) · Built for teaching.<br>
+© 2026 Kelvin Lau · Code released under the <a href="https://github.com/klausenhauser/structbio-explorer/blob/main/LICENSE">MIT License</a> · Third-party data remain under their providers' terms.<br>
+<a href="https://github.com/klausenhauser/structbio-explorer">Source on GitHub</a></footer>
 </body></html>
