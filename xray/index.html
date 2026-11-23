@@ -1,0 +1,841 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Diffraction at PXI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one-screen experimental hutch. The opened-up beamline fills the left with a reciprocal-space inset in its corner; the EIGER console with the real frames sits on the right; field notes follow. Deliberately single dark theme: a hutch with the lights off. */
+:root{
+  color-scheme: dark;
+  --bg:#0a0c11;
+  --panel:#11151c;
+  --panel-2:#171c26;
+  --line:#252e3c;
+  --fg:#ece7dd;
+  --muted:#939aa7;
+  --gold:#ffc757;
+  --gold-2:#ffe2a3;
+  --copper:#d48b57;
+  --ice:#7fd3ff;
+  --pick:#ff6fae;
+  --good:#86d6a2;
+  --display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+html{background:var(--bg)}
+body{
+  background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-block:16px 56px;
+}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:14px;
+  height:calc(100svh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));min-height:700px;max-height:1080px}
+.scene{position:relative;min-width:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  background:radial-gradient(120% 90% at 35% 15%, #151a24 0%, var(--panel) 55%, #0b0e14 100%)}
+.gl{position:absolute;inset:0}
+.gl canvas{display:block;width:100%;height:100%;touch-action:none}
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;font:500 11px/1.25 var(--mono);color:var(--muted);white-space:nowrap;display:flex;align-items:center;gap:6px;will-change:transform}
+.lbl::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--copper);flex:none}
+.lbl b{color:var(--fg);font-weight:500}
+.lbl.beam::before{background:var(--gold)}
+.lbl.dim{opacity:.75}
+
+.intro{position:absolute;top:18px;left:20px;max-width:27rem;pointer-events:none}
+.eyebrow{margin:0 0 6px;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+h1{margin:0;font-family:var(--display);font-weight:600;font-size:clamp(28px,3.3vw,44px);line-height:1.02;letter-spacing:-.02em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--gold);font-weight:700}
+.lede{margin:10px 0 0;color:var(--muted);font-size:14px;max-width:38ch}
+
+.scene-bar{position:absolute;left:16px;bottom:14px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;max-width:calc(100% - 32px)}
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:6px 11px;border-radius:999px;font:500 12px/1 var(--body);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.chip-btn{border:1px solid var(--line);background:var(--panel-2);padding:7px 11px;border-radius:999px;font:500 12px/1 var(--body);cursor:pointer}
+.chip-btn:hover{border-color:var(--gold)}
+.chip-btn[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.chip-btn kbd{margin-left:4px}
+
+.inset{position:absolute;right:14px;top:14px;width:min(340px,44%);aspect-ratio:1/1.08;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  background:radial-gradient(90% 80% at 50% 40%, #121a26 0%, #0b0f16 100%);box-shadow:0 10px 40px rgba(0,0,0,.45);transition:width .25s ease}
+.inset.big{width:min(640px,72%)}
+.inset .gl2{position:absolute;inset:0}
+.inset .gl2 canvas{display:block;width:100%;height:100%;touch-action:none}
+.inset-head{position:absolute;left:10px;right:10px;top:8px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none}
+.inset-head h2{margin:0;font:600 13px/1.2 var(--display);letter-spacing:-.005em}
+.inset-head p{margin:2px 0 0;font:400 10.5px/1.3 var(--mono);color:var(--muted)}
+.inset-head .btns{display:flex;gap:6px;pointer-events:auto}
+.inset-head .btns button{border:1px solid var(--line);background:rgba(16,20,28,.8);padding:4px 8px;border-radius:999px;font:500 11px/1 var(--body);cursor:pointer}
+.inset-head .btns button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.inset-foot{position:absolute;left:10px;right:10px;bottom:8px;display:flex;flex-direction:column;gap:4px}
+.inset-foot .ctrl{background:rgba(11,15,22,.78);padding:5px 8px;border-radius:8px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 10px;font:400 10px/1.2 var(--mono);color:var(--muted)}
+.legend i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:0}
+
+.console>*{flex:none}
+.console{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.det-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.det-head h2{margin:0;font:600 15px/1.2 var(--display)}
+.det-head span{font:500 11px/1 var(--mono);color:var(--muted)}
+.viewer{position:relative;border-radius:10px;overflow:hidden;background:#06080b;border:1px solid var(--line);aspect-ratio:1037/1092;max-width:100%}
+#det{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.vbadge{position:absolute;left:8px;top:8px;font:500 11px/1.3 var(--mono);padding:5px 8px;border-radius:6px;background:rgba(6,8,11,.8);font-variant-numeric:tabular-nums}
+.vbadge b{color:var(--gold);font-weight:500}
+.vzoom{position:absolute;right:8px;top:8px;display:flex;gap:4px}
+.vzoom button{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:rgba(6,8,11,.8);cursor:pointer;font:500 14px/1 var(--mono)}
+.vcursor{position:absolute;left:8px;bottom:8px;font:400 10.5px/1.3 var(--mono);color:var(--muted);padding:4px 7px;border-radius:6px;background:rgba(6,8,11,.8);font-variant-numeric:tabular-nums}
+.vload{position:absolute;right:8px;bottom:8px;font:400 10.5px/1.3 var(--mono);color:var(--muted);padding:4px 7px;border-radius:6px;background:rgba(6,8,11,.8)}
+
+.player{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+.play{width:36px;height:36px;border-radius:50%;border:1px solid var(--gold);background:transparent;color:var(--gold);cursor:pointer;font:600 13px/1 var(--mono)}
+.player input{width:100%;accent-color:var(--gold)}
+.player output{font:500 12px/1.2 var(--mono);color:var(--gold-2);font-variant-numeric:tabular-nums;text-align:right;min-width:9.5ch}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row .lab{font:500 11px/1 var(--mono);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.ctrl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;align-items:baseline}
+.ctrl label{font:500 12px/1.2 var(--body)}
+.ctrl output{justify-self:end;font:500 12px/1 var(--mono);color:var(--gold-2);font-variant-numeric:tabular-nums}
+.ctrl input{grid-column:1/-1;width:100%;accent-color:var(--gold);margin:1px 0 0}
+
+.pick{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel-2);display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline}
+.pick .hkl{grid-column:1/-1;font:600 20px/1.1 var(--display);color:var(--pick);letter-spacing:-.01em}
+.pick .hkl small{font:400 11px/1 var(--mono);color:var(--muted);margin-left:6px}
+.pick dt{font:500 10px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pick dd{margin:0;font:500 12.5px/1.3 var(--mono);font-variant-numeric:tabular-nums}
+.pick.empty .hkl{color:var(--muted);font-size:14px;font-family:var(--body);font-weight:400}
+
+.readouts{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:0;padding-top:12px;border-top:1px solid var(--line)}
+.readouts div{min-width:0}
+.readouts dt{font:500 10px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.readouts dd{margin:2px 0 0;font:500 13px/1.3 var(--mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.keys{margin:0;font:400 11px/1.6 var(--mono);color:var(--muted)}
+kbd{font:500 10.5px/1 var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 4px;color:var(--fg)}
+
+.notes{max-width:1180px;margin:56px auto 0;display:grid;grid-template-columns:minmax(0,270px) minmax(0,1fr);gap:40px}
+.notes aside h2{font-family:var(--display);font-weight:600;font-size:30px;line-height:1.05;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.notes aside p{color:var(--muted);font-size:14px}
+.stats{margin:18px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.stats dt{font:500 10px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stats dd{margin:2px 0 0;font:500 14px/1.25 var(--mono);font-variant-numeric:tabular-nums}
+.notes .body{max-width:66ch;display:flex;flex-direction:column;gap:28px}
+.notes h3{margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:-.01em;text-wrap:balance}
+.notes h3 span{font:500 11px/1 var(--mono);color:var(--gold);letter-spacing:.1em;margin-right:8px;vertical-align:2px}
+.notes p{margin:0 0 10px}
+.notes strong{color:var(--gold-2);font-weight:600}
+.notes .try{color:var(--ice)}
+.foot{max-width:1180px;margin:40px auto 0;padding-top:16px;border-top:1px solid var(--line);font:400 11.5px/1.6 var(--mono);color:var(--muted)}
+.foot a{color:var(--ice)}
+
+@media (max-width:1020px){
+  .app{grid-template-columns:1fr;height:auto;max-height:none;min-height:0}
+  .scene{height:min(78svh,720px);min-height:520px}
+  .console{overflow:visible}
+  .notes{grid-template-columns:1fr;gap:16px}
+}
+@media (max-width:560px){
+  .lede{display:none}
+  .intro{top:12px;left:14px}
+  .lbl{font-size:9.5px}
+  .inset{width:calc(100% - 28px);top:auto;bottom:64px;aspect-ratio:1/0.9}
+  .inset.big{width:calc(100% - 28px)}
+  .scene{height:860px}
+}
+</style>
+
+<main class="app">
+  <section class="scene" aria-label="Interactive 3D model of the PXI macromolecular crystallography beamline">
+    <div class="gl" id="gl"></div>
+    <div class="labels" id="labels"></div>
+    <header class="intro">
+      <p class="eyebrow">SLS · X06SA · PXI</p>
+      <h1>Diffraction at <em>PXI</em></h1>
+      <p class="lede">An undulator beamline, opened up from source to detector, with your KEAP1 crystal on the goniometer. The frames are your raw EIGER 16M images, and every spot is tied to its point in reciprocal space.</p>
+    </header>
+    <div class="scene-bar">
+      <div class="seg" role="group" aria-label="Camera">
+        <button id="vFull" aria-pressed="true">Whole beamline</button>
+        <button id="vEnd" aria-pressed="false">Endstation</button>
+      </div>
+      <button class="chip-btn" id="bRays" aria-pressed="true">Diffracted rays</button>
+    </div>
+    <div class="inset" id="inset">
+      <div class="gl2" id="gl2"></div>
+      <div class="inset-head">
+        <div><h2>Reciprocal space</h2><p id="insetSub">Ewald sphere, 1/λ = 1.00 Å⁻¹</p></div>
+        <div class="btns">
+          <button id="bSpin" aria-pressed="false">Spin 220°</button>
+          <button id="bBig" aria-pressed="false" aria-label="Enlarge reciprocal-space view">⤢</button>
+        </div>
+      </div>
+      <div class="inset-foot">
+        <div class="ctrl">
+          <label for="dminR">Lattice shown to</label><output id="dminO">4.0 Å</output>
+          <input id="dminR" type="range" min="1.9" max="8" step="0.1" value="4.0">
+        </div>
+        <div class="legend"><span><i style="background:var(--gold)"></i>on the sphere now</span><span><i style="background:var(--ice)"></i>already recorded</span><span><i style="background:#4d5a70"></i>still to come</span><span><i style="background:var(--pick)"></i>selected</span></div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="console" aria-label="EIGER 16M frame viewer and controls">
+    <div class="det-head"><h2>EIGER 16M · your frames</h2><span>collectKEAP-P6-1_1</span></div>
+    <div class="viewer" id="viewer">
+      <canvas id="det" aria-label="Diffraction image from the detector"></canvas>
+      <span class="vbadge" id="vbadge">Frame <b>1</b></span>
+      <div class="vzoom"><button id="zIn" aria-label="Zoom in">+</button><button id="zOut" aria-label="Zoom out">−</button><button id="zFit" aria-label="Fit whole detector">⤢</button></div>
+      <span class="vcursor" id="vcursor">Move over the image for resolution</span>
+      <span class="vload" id="vload">Loading frames…</span>
+    </div>
+    <div class="player">
+      <button class="play" id="play" aria-label="Play rotation">▶</button>
+      <input id="frameR" type="range" min="1" max="360" step="1" value="1" aria-label="Image: 200 single frames (0–20°), then 160 one-degree wedges (20–180°)">
+      <output id="frameO">φ 0.0–0.1°</output>
+    </div>
+    <div class="row">
+      <span class="lab">Wedge</span>
+      <div class="seg" id="wedge" role="group" aria-label="Oscillation wedge summed">
+        <button data-n="1" aria-pressed="true">0.1°</button>
+        <button data-n="5" aria-pressed="false">0.5°</button>
+        <button data-n="10" aria-pressed="false">1.0°</button>
+      </div>
+      <span class="lab" id="wedgeNote" hidden>Past 20° each image is a 1° wedge (10 frames summed)</span>
+    </div>
+    <div class="row">
+      <button class="chip-btn" id="bPred" aria-pressed="true">XDS predictions <kbd>P</kbd></button>
+      <button class="chip-btn" id="bRings" aria-pressed="true">Resolution rings <kbd>R</kbd></button>
+      <button class="chip-btn" id="bInv" aria-pressed="false">Invert <kbd>I</kbd></button>
+    </div>
+    <div class="ctrl">
+      <label for="conR">Contrast (counts per 4 × 4 pixels, per frame)</label><output id="conO">2000</output>
+      <input id="conR" type="range" min="0" max="100" step="1" value="78">
+    </div>
+
+    <dl class="pick empty" id="pick">
+      <div class="hkl" id="pHkl">Click a spot to index it</div>
+      <dt>d-spacing</dt><dd id="pD">—</dd>
+      <dt>I / σ(I)</dt><dd id="pI">—</dd>
+      <dt>Centred at</dt><dd id="pPhi">—</dd>
+      <dt>Detector x, y</dt><dd id="pXY">—</dd>
+    </dl>
+
+    <dl class="readouts">
+      <div><dt>Wavelength</dt><dd>1.0000 Å · 12.40 keV</dd></div>
+      <div><dt>Distance</dt><dd>225.3 mm</dd></div>
+      <div><dt>Resolution at edge</dt><dd id="rEdge">—</dd></div>
+      <div><dt>Spots in wedge</dt><dd id="rN">—</dd></div>
+      <div><dt>Cell (H3 2)</dt><dd>119.6 × 119.6 × 167.2 Å</dd></div>
+      <div><dt>Mosaicity</dt><dd>0.23°</dd></div>
+    </dl>
+    <p class="keys"><kbd>Space</kbd> play · <kbd>←</kbd> <kbd>→</kbd> frame · scroll or pinch to zoom · drag to pan · <kbd>F</kbd> fit · <kbd>E</kbd> endstation view</p>
+  </aside>
+</main>
+
+<section class="notes">
+  <aside>
+    <h2>From an electron beam to an indexed spot</h2>
+    <p>Field notes for the model above. The numbers in the console come from your images and from the XDS run that was deposited with them.</p>
+    <dl class="stats">
+      <div><dt>Protein</dt><dd>KEAP1 + cyclic peptide</dd></div>
+      <div><dt>PDB</dt><dd>9QBT</dd></div>
+      <div><dt>Frames</dt><dd>2200 × 0.1°</dd></div>
+      <div><dt>Shown here</dt><dd>0–20° by frame, 20–180° in 1° wedges</dd></div>
+      <div><dt>Completeness</dt><dd>99.9% to 1.90 Å</dd></div>
+      <div><dt>I/σ at 2.33 Å</dt><dd>5.2</dd></div>
+      <div><dt>CC½ at 2.33 Å</dt><dd>81%</dd></div>
+      <div><dt>ISa</dt><dd>10.6</dd></div>
+    </dl>
+  </aside>
+  <div class="body">
+    <div>
+      <h3><span>01</span>Light from bent electrons</h3>
+      <p>The SLS stores electrons circulating at 2.4 GeV. In a straight section of the ring they pass through an <strong>undulator</strong>: two rows of permanent magnets with alternating poles a few millimetres apart. The electrons wiggle, and the X-rays from each wiggle add up in phase into a narrow, intense cone along the beam. Closing the magnet gap tunes the photon energy of the harmonics.</p>
+    </div>
+    <div>
+      <h3><span>02</span>Choosing one wavelength</h3>
+      <p>A <strong>double-crystal monochromator</strong> selects a single wavelength by Bragg reflection, λ = 2d sin θ, from two perfect crystals in parallel. The second crystal sends the beam on parallel to the first, offset upwards. For a silicon (111) pair, 1.0000 Å needs θ ≈ 9.2°. PXI also has a <strong>double multilayer monochromator</strong>, which passes a broader energy band for much more flux when that matters more than spectral purity.</p>
+    </div>
+    <div>
+      <h3><span>03</span>Focusing onto the crystal</h3>
+      <p>A <strong>Kirkpatrick–Baez mirror pair</strong> focuses the beam: one curved mirror focuses vertically, the other horizontally, both at grazing angles of a few milliradians. Slits, attenuators and a fast shutter set the beam size and dose before a collimator brings it to the crystal.</p>
+    </div>
+    <div>
+      <h3><span>04</span>The rotation method</h3>
+      <p>The crystal sits in a loop on a pin, in a 100 K nitrogen <strong>cryostream</strong>, on a goniometer spindle that is horizontal and perpendicular to the beam. It turns at constant speed while the detector records one frame per 0.1°. Your sweep is 2200 frames, 220° in total. Fine slicing like this is close to the crystal's mosaic spread (0.23°), so each reflection spreads over two or three frames and XDS can fit its profile in three dimensions.</p>
+      <p class="try">Try it: play the frames at 0.1°, then switch the wedge to 1.0°. Past 20° the slider continues in 1° wedges to 180°, so you can watch the lunes move as the crystal turns. Summing ten frames is what a coarse oscillation would have recorded: more spots, but each one sitting on ten times the background.</p>
+    </div>
+    <div>
+      <h3><span>05</span>The EIGER 16M</h3>
+      <p>The DECTRIS <strong>EIGER 16M</strong> is a hybrid photon-counting detector: a 450 µm silicon sensor bump-bonded to readout chips, with 4150 × 4371 pixels of 75 µm (311 × 328 mm). Each pixel counts single X-ray photons above a threshold, so there is no readout noise and no dark current to subtract. Readout is continuous, which is what makes shutterless fine slicing possible.</p>
+      <p>The dark lines are the gaps between its 32 modules and the chips within them. The dark bar from the left edge to the middle is the shadow of the <strong>beamstop</strong> and its arm, which catch the direct beam. Your frames are stored as HDF5, 100 frames per file, compressed with bitshuffle-LZ4.</p>
+    </div>
+    <div>
+      <h3><span>06</span>The Ewald sphere</h3>
+      <p>Bragg's law has a geometric form. Draw a sphere of radius 1/λ with the crystal at its centre and the beam along a diameter; the origin of reciprocal space sits where the beam leaves the sphere. A reflection <em>hkl</em> diffracts exactly when its reciprocal-lattice point touches the sphere, and the diffracted ray runs from the centre of the sphere through that point to the detector.</p>
+      <p>Rotating the crystal rotates its reciprocal lattice through the sphere. Points that cross during one 0.1° frame are the spots on that frame, so each lune of spots on the detector is one lattice plane cutting the sphere. At 1.0 Å the sphere is large compared with the lattice (2.33 Å is 0.43 Å⁻¹), which is why it looks nearly flat in the inset.</p>
+      <p class="try">Try it: click a spot on the detector. Its index appears in the console and its lattice point turns pink in the inset. Then press Spin 220° to sweep the whole lattice through the sphere as in your full dataset.</p>
+    </div>
+    <div>
+      <h3><span>07</span>Indexing your crystal</h3>
+      <p>XDS found the cell from the positions of about 28,000 spots: rhombohedral, a = b = 119.6 Å, c = 167.2 Å in the hexagonal setting, space group H3 2. Rhombohedral centring allows only reflections with −h + k + l = 3n, so two thirds of the hexagonal lattice points are systematically absent. They are already left out of the inset. Every predicted spot in the console comes from XDS's own integration, re-indexed from its primitive cell to the hexagonal one.</p>
+    </div>
+    <div>
+      <h3><span>08</span>What this model simplifies</h3>
+      <p>The beamline is schematic: upstream distances are compressed from tens of metres, component shapes are generic, and the crystal is drawn far larger than real. The endstation is roughly to scale: the detector size and the 225 mm sample distance are taken from the data. Frames are binned 4 × 4 (2 × 2 in the zoomed centre) and lossily compressed for the web, and wedge sums are made from those compressed frames. Lattice-point brightness in the inset is the mean I/σ from XDS.</p>
+    </div>
+  </div>
+</section>
+<p class="foot">Version 2 · Data: frames 1–200 (0–20°, each 0.1° frame) and 1° sums of frames 201–1800 (20–180°) of the raw dataset deposited with PDB 9QBT (<a href="https://doi.org/10.18430/M39QBT" target="_blank" rel="noopener">doi:10.18430/M39QBT</a>, proteindiffraction.org), collected at SLS X06SA on 8 Feb 2023. Geometry and predictions from the deposited XDS files (GXPARM.XDS, INTEGRATE.HKL, CORRECT.LP). λ 1.0000 Å, distance 225.26 mm, beam centre (2053.6, 2144.6) px, rotation 0.1° per frame.</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NFINE=200, NWEDGE=160, NIMG=NFINE+NWEDGE, BW=1037, BH=1092;  // images 1–200: single 0.1° frames; 201–360: 1° wedges (10 frames summed); binned 4×4
+const ZX0=1030, ZY0=1121, ZS=1024;      // 2×2-binned centre crop: XDS x0, y0, size
+const K4=70, S4=40000, K2=17.5, S2=15000, KW=700, SW=400000;
+const lut4=new Float32Array(256), lut2=new Float32Array(256), lutW=new Float32Array(256);
+for(let v=0;v<256;v++){const t=Math.max(0,v-1)/254; lut4[v]=K4*Math.sinh(t*Math.asinh(S4/K4)); lut2[v]=K2*Math.sinh(t*Math.asinh(S2/K2)); lutW[v]=KW*Math.sinh(t*Math.asinh(SW/KW));}
+// image k -> which frames it covers; z in XDS frame units (frame f spans z f-1..f), φ = 0.1° per frame
+function img(k){ if(k<=NFINE){ const n=Math.min(st.wedge,NFINE-k+1); return {fine:true,ids:Array.from({length:n},(_,q)=>k+q),n,z0:k-1,z1:k-1+n}; }
+  const j=k-NFINE, z0=NFINE+(j-1)*10; return {fine:false,j,n:10,z0,z1:z0+10}; }
+const pad3=i=>String(i).padStart(3,'0');
+
+let G=null, REFL=[], RECIP=null, NR=0, RZ=null;
+const st={frame:1,wedge:1,pred:true,rings:true,inv:false,contrast:2000,playing:false,sel:-1,rays:true,spin:false,phiSpin:0,dmin:4.0};
+
+/* ---------------- geometry helpers (XDS lab frame) ---------------- */
+function rotMat(ax,deg){
+  const t=deg*Math.PI/180,c=Math.cos(t),s=Math.sin(t),C=1-c,[x,y,z]=ax;
+  return [c+x*x*C, x*y*C-z*s, x*z*C+y*s, y*x*C+z*s, c+y*y*C, y*z*C-x*s, z*x*C-y*s, z*y*C+x*s, c+z*z*C];
+}
+const mv=(m,v)=>[m[0]*v[0]+m[1]*v[1]+m[2]*v[2], m[3]*v[0]+m[4]*v[1]+m[5]*v[2], m[6]*v[0]+m[7]*v[1]+m[8]*v[2]];
+const toThree=v=>new THREE.Vector3(-v[0],-v[1],v[2]); // 180° about the beam: keeps handedness, puts detector rows downward
+function recipVec(h,k,l){const A=G.Astar; return [A[0][0]*h+A[0][1]*k+A[0][2]*l, A[1][0]*h+A[1][1]*k+A[1][2]*l, A[2][0]*h+A[2][1]*k+A[2][2]*l];}
+function dOf(h,k,l){const r=recipVec(h,k,l); return 1/Math.hypot(r[0],r[1],r[2]);}
+function pxToD(x,y){
+  const dx=(x-G.ORGX)*G.QX, dy=(y-G.ORGY)*G.QY, r=Math.hypot(dx,dy), tth=Math.atan2(r,G.F);
+  return tth<1e-6?Infinity:G.lam/(2*Math.sin(tth/2));
+}
+function dToR(d){const tth=2*Math.asin(G.lam/(2*d)); return Math.tan(tth)*G.F/G.QX;}
+
+/* ---------------- frame loading & cache ---------------- */
+const cache=new Map(), zcache=new Map(), pending=new Map();
+const scratch=document.createElement('canvas'), sctx=scratch.getContext('2d',{willReadFrequently:true});
+async function decode(url,w,h){
+  const r=await fetch(url); if(!r.ok) throw new Error(url+' '+r.status);
+  const blob=await r.blob();
+  let img; try{img=await createImageBitmap(blob);}catch(e){img=await new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=URL.createObjectURL(blob);});}
+  scratch.width=w; scratch.height=h; sctx.drawImage(img,0,0);
+  const d=sctx.getImageData(0,0,w,h).data, out=new Uint8Array(w*h);
+  for(let i=0,j=0;i<out.length;i++,j+=4) out[i]=d[j];
+  return out;
+}
+const wcache=new Map();
+function load(kind,i){
+  if(kind==='z'){ // zoom crops are stored two frames per image (frame 2p−1 on top, 2p below)
+    const p=Math.ceil(i/2), half=a=>i%2?a.subarray(0,ZS*ZS):a.subarray(ZS*ZS);
+    if(zcache.has(p)) return Promise.resolve(half(zcache.get(p)));
+    const key='z'+p; if(!pending.has(key)) pending.set(key,decode(`zoom/zp${pad3(p)}.webp`,ZS,2*ZS).then(a=>{zcache.set(p,a); if(zcache.size>12) zcache.delete(zcache.keys().next().value); pending.delete(key); return a;}).catch(e=>{pending.delete(key); throw e;}));
+    return pending.get(key).then(half);
+  }
+  const map=kind==='f'?cache:wcache, key=kind+i;
+  if(map.has(i)) return Promise.resolve(map.get(i));
+  if(pending.has(key)) return pending.get(key);
+  const url=kind==='f'?`frames/f${pad3(i)}.webp`:`wedges/w${pad3(i)}.webp`;
+  const p=decode(url,BW,BH).then(a=>{map.set(i,a); if(map.size>(kind==='f'?40:16)){const k=map.keys().next().value; map.delete(k);} pending.delete(key); return a;})
+    .catch(e=>{pending.delete(key); throw e;});
+  pending.set(key,p); return p;
+}
+
+/* ---------------- detector rendering ---------------- */
+const frameCanvas=document.createElement('canvas'); frameCanvas.width=BW; frameCanvas.height=BH;
+const fctx=frameCanvas.getContext('2d'); const fImg=fctx.createImageData(BW,BH);
+const zoomCanvas=document.createElement('canvas'); zoomCanvas.width=zoomCanvas.height=ZS;
+const zctx=zoomCanvas.getContext('2d'); const zImg=zctx.createImageData(ZS,ZS);
+let zoomReady=false, frameReady=false, renderToken=0;
+const sumF=new Float32Array(BW*BH), sumZ=new Float32Array(ZS*ZS);
+function paint(sum,img,n,lut0,hiPerFrame,gapsFrom){
+  const d=img.data, hi=hiPerFrame*n, inv=st.inv;
+  for(let i=0,j=0;i<sum.length;i++,j+=4){
+    if(gapsFrom[i]===0){d[j]=inv?150:24;d[j+1]=inv?156:28;d[j+2]=inv?166:36;d[j+3]=255;continue;}
+    let t=sum[i]/hi; t=t<=0?0:t>=1?1:Math.pow(t,0.62);
+    let r,g,b;
+    if(inv){const v=255*(1-t); r=g=b=v;}
+    else { // dark → amber → white
+      r=255*Math.min(1,t*1.55); g=255*Math.min(1,Math.max(0,t*1.45-0.18)); b=255*Math.max(0,t*1.7-0.7)+18*(1-t);
+    }
+    d[j]=r;d[j+1]=g;d[j+2]=b;d[j+3]=255;
+  }
+}
+async function renderFrame(){
+  const tok=++renderToken, I=img(st.frame), ids=I.ids||[];
+  if(view.s<=0.42||!I.fine) zoomReady=false;
+  let arrs;
+  try{arrs=I.fine?await Promise.all(ids.map(i=>load('f',i))):[await load('w',I.j)];}catch(e){$('#vload').textContent='Frames could not be loaded'; return;}
+  if(tok!==renderToken) return;
+  const lut=I.fine?lut4:lutW;
+  sumF.fill(0); for(const a of arrs) for(let i=0;i<a.length;i++) sumF[i]+=lut[a[i]];
+  paint(sumF,fImg,I.n,lut,st.contrast,arrs[0]); fctx.putImageData(fImg,0,0); frameReady=true;
+  if(detTex) detTex.needsUpdate=true;
+  drawViewer();
+  if(view.s>0.42&&I.fine){ // zoomed: bring in the 2×2 centre crop
+    zoomReady=false;
+    try{const za=await Promise.all(ids.map(i=>load('z',i))); if(tok!==renderToken) return;
+      sumZ.fill(0); for(const a of za) for(let i=0;i<a.length;i++) sumZ[i]+=lut2[a[i]];
+      paint(sumZ,zImg,ids.length,lut2,st.contrast/4,za[0]); zctx.putImageData(zImg,0,0); zoomReady=true; zoomFor=tok; drawViewer();
+    }catch(e){}
+  }
+  prefetch();
+}
+let zoomFor=-1;
+function prefetch(){
+  const I=img(st.frame);
+  if(I.fine){ const f=st.frame+I.n; for(let i=f;i<Math.min(NFINE+1,f+I.n*3);i++) load('f',i).catch(()=>{}); }
+  for(let j=(I.fine?1:I.j+1);j<=Math.min(NWEDGE,(I.fine?2:I.j+3));j++) if(!I.fine||st.frame>NFINE-30) load('w',j).catch(()=>{});
+}
+async function preloadAll(){
+  let done=0;
+  for(let i=1;i<=NFINE;i++){ try{await load('f',i);}catch(e){} done++; if(done%5===0||done===NFINE) $('#vload').textContent=done<NFINE?`Loaded ${done}/200 frames`:'0–20° loaded · wedges on demand'; }
+}
+
+/* ---------------- viewer ---------------- */
+const det=$('#det'), dctx=det.getContext('2d'), viewerEl=$('#viewer');
+const view={cx:2075,cy:2185,s:0.1}; // centre in XDS px, screen px per XDS px
+let vw=0,vh=0,dpr=1;
+function fit(){view.cx=4150/2; view.cy=4371/2; view.s=vw/4150;}
+function sizeViewer(){
+  dpr=Math.min(2,devicePixelRatio||1); const r=viewerEl.getBoundingClientRect(); const was=vw;
+  vw=r.width; vh=r.height; det.width=Math.round(vw*dpr); det.height=Math.round(vh*dpr);
+  if(!was) fit(); else view.s*=vw/was;
+  drawViewer();
+}
+const toScr=(x,y)=>[(x-view.cx)*view.s+vw/2,(y-view.cy)*view.s+vh/2];
+const toDet=(sx,sy)=>[(sx-vw/2)/view.s+view.cx,(sy-vh/2)/view.s+view.cy];
+let wedgeRefl=[];
+function collectWedge(){
+  const I=img(st.frame), a=I.z0*10, b=I.z1*10; wedgeRefl=[];
+  let lo=0,hi=NR; while(lo<hi){const m=(lo+hi)>>1; if(RZ[m]<a) lo=m+1; else hi=m;}  // reflections are sorted by z
+  for(let i=lo;i<NR&&RZ[i]<b;i++) wedgeRefl.push(i);
+  const strong=wedgeRefl.filter(i=>REFL[i][7]>0&&REFL[i][6]/REFL[i][7]>=3).length;
+  $('#rN').textContent=`${wedgeRefl.length} predicted · ${strong} with I/σ ≥ 3`;
+}
+function drawViewer(){
+  const g=dctx; g.setTransform(dpr,0,0,dpr,0,0); g.fillStyle='#06080b'; g.fillRect(0,0,vw,vh);
+  if(!frameReady) return;
+  g.imageSmoothingEnabled=view.s<0.25;
+  const [x0,y0]=toScr(0,0); g.drawImage(frameCanvas,x0,y0,BW*4*view.s,BH*4*view.s);
+  if(view.s>0.42&&zoomReady){const [zx,zy]=toScr(ZX0,ZY0); g.imageSmoothingEnabled=false; g.drawImage(zoomCanvas,zx,zy,ZS*2*view.s,ZS*2*view.s);}
+  if(!G) return;
+  const [bx,by]=toScr(G.ORGX,G.ORGY);
+  if(st.rings){
+    g.lineWidth=1; g.font='500 10px "IBM Plex Mono", monospace'; g.textAlign='left';
+    for(const d of [10,5,3.5,2.5,2.0]){
+      const r=dToR(d)*view.s; g.strokeStyle='rgba(127,211,255,.45)'; g.beginPath(); g.arc(bx,by,r,0,Math.PI*2); g.stroke();
+      const a=-0.62, lx=bx+r*Math.cos(a)+3, ly=by+r*Math.sin(a)-3;
+      if(lx<vw-30&&ly>12){g.fillStyle='rgba(6,8,11,.7)'; g.fillRect(lx-2,ly-10,d>=10?30:34,13); g.fillStyle='#7fd3ff'; g.fillText(d+' Å',lx,ly);}
+    }
+  }
+  if(st.pred){
+    const dense=wedgeRefl.length>600, rr=dense?Math.max(2.2,Math.min(6,4*view.s*4/2.2)):Math.max(3.2,Math.min(9,7*view.s*4/2.2));
+    for(const i of wedgeRefl){
+      const R=REFL[i], [sx,sy]=toScr(R[3],R[4]); if(sx<-10||sy<-10||sx>vw+10||sy>vh+10) continue;
+      const strong=R[7]>0&&R[6]/R[7]>=3; if(dense&&!strong) continue;  // 1° wedges: show only I/σ ≥ 3
+      g.strokeStyle=strong?'rgba(255,199,87,.95)':'rgba(255,199,87,.38)'; g.lineWidth=strong?1.3:1;
+      g.beginPath(); g.arc(sx,sy,rr,0,Math.PI*2); g.stroke();
+    }
+  }
+  if(st.sel>=0){
+    const R=REFL[st.sel], [sx,sy]=toScr(R[3],R[4]);
+    g.strokeStyle='#ff6fae'; g.lineWidth=2; g.beginPath(); g.arc(sx,sy,11,0,Math.PI*2); g.stroke();
+    g.beginPath(); g.moveTo(sx-18,sy);g.lineTo(sx-13,sy);g.moveTo(sx+13,sy);g.lineTo(sx+18,sy);g.moveTo(sx,sy-18);g.lineTo(sx,sy-13);g.moveTo(sx,sy+13);g.lineTo(sx,sy+18);g.stroke();
+  }
+  g.fillStyle='rgba(255,199,87,.9)'; g.beginPath(); g.arc(bx,by,2.2,0,Math.PI*2); g.fill();
+}
+// zoom / pan / pick
+function zoomAt(sx,sy,f){
+  const [x,y]=toDet(sx,sy); const fitS=vw/4150;
+  view.s=Math.max(fitS*0.9,Math.min(fitS*28,view.s*f));
+  view.cx=x-(sx-vw/2)/view.s; view.cy=y-(sy-vh/2)/view.s;
+  drawViewer(); if(view.s>0.42&&zoomFor!==renderToken) renderFrame();
+}
+det.addEventListener('wheel',e=>{e.preventDefault(); const r=det.getBoundingClientRect(); zoomAt(e.clientX-r.left,e.clientY-r.top,Math.exp(-e.deltaY*0.0016));},{passive:false});
+const ptrs=new Map(); let panStart=null, pinch=null, moved=0;
+det.addEventListener('pointerdown',e=>{det.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); moved=0;
+  if(ptrs.size===1) panStart={x:e.clientX,y:e.clientY,cx:view.cx,cy:view.cy};
+  if(ptrs.size===2){const p=[...ptrs.values()]; pinch={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)}; panStart=null;}
+});
+det.addEventListener('pointermove',e=>{
+  const r=det.getBoundingClientRect(), sx=e.clientX-r.left, sy=e.clientY-r.top;
+  if(G){const [x,y]=toDet(sx,sy); const d=pxToD(x,y); $('#vcursor').textContent=(x>=0&&y>=0&&x<4150&&y<4371)?`x ${x.toFixed(0)}  y ${y.toFixed(0)}  d ${isFinite(d)?d.toFixed(2)+' Å':'∞'}`:'outside the detector';}
+  if(!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch&&ptrs.size===2){const p=[...ptrs.values()], d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y); zoomAt((p[0].x+p[1].x)/2-r.left,(p[0].y+p[1].y)/2-r.top,d/pinch.d); pinch.d=d; moved+=10; return;}
+  if(panStart){const dx=e.clientX-panStart.x, dy=e.clientY-panStart.y; moved=Math.max(moved,Math.hypot(dx,dy)); view.cx=panStart.cx-dx/view.s; view.cy=panStart.cy-dy/view.s; drawViewer();}
+});
+function up(e){
+  const wasClick=ptrs.size===1&&moved<5; ptrs.delete(e.pointerId); if(ptrs.size<2) pinch=null;
+  if(ptrs.size===0){ if(panStart&&view.s>0.42&&zoomFor!==renderToken) renderFrame(); panStart=null; }
+  if(wasClick&&e.type==='pointerup'){const r=det.getBoundingClientRect(); pickAt(e.clientX-r.left,e.clientY-r.top);}
+}
+det.addEventListener('pointerup',up); det.addEventListener('pointercancel',up);
+det.addEventListener('dblclick',e=>{const r=det.getBoundingClientRect(); zoomAt(e.clientX-r.left,e.clientY-r.top,2.2);});
+$('#zIn').addEventListener('click',()=>zoomAt(vw/2,vh/2,1.8));
+$('#zOut').addEventListener('click',()=>zoomAt(vw/2,vh/2,1/1.8));
+$('#zFit').addEventListener('click',()=>{fit();drawViewer();});
+function pickAt(sx,sy){
+  let best=-1,bd=16*16;
+  for(const i of wedgeRefl){const [x,y]=toScr(REFL[i][3],REFL[i][4]); const d=(x-sx)**2+(y-sy)**2; if(d<bd){bd=d;best=i;}}
+  select(best);
+}
+function select(i){
+  st.sel=i; const p=$('#pick');
+  if(i<0){p.classList.add('empty'); $('#pHkl').textContent='Click a spot to index it'; for(const k of ['#pD','#pI','#pPhi','#pXY']) $(k).textContent='—';}
+  else{
+    const R=REFL[i]; p.classList.remove('empty');
+    $('#pHkl').innerHTML=`${R[0]} ${R[1]} ${R[2]}<small>h k l, hexagonal</small>`;
+    $('#pD').textContent=dOf(R[0],R[1],R[2]).toFixed(2)+' Å';
+    $('#pI').textContent=R[7]>0?(R[6]/R[7]).toFixed(1):'—';
+    $('#pPhi').textContent=`φ ${(R[5]*G.osc).toFixed(2)}° · frame ${Math.floor(R[5])+1}`;
+    $('#pXY').textContent=`${R[3].toFixed(0)}, ${R[4].toFixed(0)} px`;
+  }
+  drawViewer(); updateSelected(); updateRays();
+}
+
+/* ---------------- controls ---------------- */
+const frameR=$('#frameR'), wedgeBtns=[...document.querySelectorAll('#wedge button')];
+function setFrame(f){
+  st.frame=Math.max(1,Math.min(NIMG,f)); frameR.value=st.frame;
+  const I=img(st.frame), a=I.z0*0.1, b=I.z1*0.1;
+  $('#frameO').textContent=`φ ${a.toFixed(a<20?1:0)}–${b.toFixed(b<=20?1:0)}°`;
+  $('#vbadge').innerHTML=I.fine?(I.n===1?`Frame <b>${st.frame}</b>`:`Frames <b>${st.frame}–${st.frame+I.n-1}</b> summed`):`Frames <b>${I.z0+1}–${I.z1}</b> · 1° wedge`;
+  wedgeBtns.forEach(x=>{x.disabled=!I.fine;}); $('#wedgeNote').hidden=I.fine;
+  if(G){collectWedge(); updateLattice(); updateRays(); setCrystalPhi();}
+  renderFrame();
+}
+frameR.addEventListener('input',()=>setFrame(+frameR.value));
+wedgeBtns.forEach(b=>b.addEventListener('click',()=>{st.wedge=+b.dataset.n; wedgeBtns.forEach(x=>x.setAttribute('aria-pressed',String(x===b))); setFrame(st.frame);}));
+const stepOf=()=>{const I=img(st.frame); return I.fine?I.n:1;};
+function tog(id,key,after){const b=$(id); b.addEventListener('click',()=>{st[key]=!st[key]; b.setAttribute('aria-pressed',String(st[key])); after&&after();});}
+tog('#bPred','pred',drawViewer); tog('#bRings','rings',drawViewer); tog('#bInv','inv',()=>renderFrame());
+tog('#bRays','rays',()=>updateRays());
+const conR=$('#conR');
+function setContrast(){st.contrast=Math.round(80*Math.pow(60,(+conR.value)/100)); $('#conO').textContent=st.contrast; renderFrame();}
+conR.addEventListener('input',setContrast);
+let playT=null;
+function setPlay(on){
+  st.playing=on; $('#play').textContent=on?'❚❚':'▶'; $('#play').setAttribute('aria-label',on?'Pause':'Play rotation');
+  clearInterval(playT); if(on) playT=setInterval(()=>{let f=st.frame+stepOf(); if(f>NIMG) f=1; setFrame(f);},reduceMotion?400:120);
+}
+$('#play').addEventListener('click',()=>setPlay(!st.playing));
+addEventListener('keydown',e=>{
+  if(e.target.closest&&e.target.closest('input,textarea,select')) return; if(e.metaKey||e.ctrlKey||e.altKey) return;
+  const k=e.key;
+  if(k===' '){setPlay(!st.playing);} else if(k==='ArrowRight'){setFrame(st.frame+stepOf());} else if(k==='ArrowLeft'){setFrame(st.frame-(st.frame>NFINE+1?1:st.wedge));}
+  else if(k==='p'||k==='P'){$('#bPred').click();} else if(k==='r'||k==='R'){$('#bRings').click();} else if(k==='i'||k==='I'){$('#bInv').click();}
+  else if(k==='f'||k==='F'){fit();drawViewer();} else if(k==='e'||k==='E'){camTo(st.cam==='end'?'full':'end');}
+  else return; e.preventDefault();
+});
+
+/* ================= 3D beamline ================= */
+const glEl=$('#gl');
+const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
+renderer.setClearColor(0x0d1017,1); renderer.outputEncoding=THREE.sRGBEncoding; glEl.appendChild(renderer.domElement);
+const scene=new THREE.Scene(); scene.fog=new THREE.Fog(0x0d1017,40,80);
+const camera=new THREE.PerspectiveCamera(34,1,0.02,200);
+scene.add(new THREE.HemisphereLight(0xd2e2ff,0x1c150e,0.8));
+const key=new THREE.DirectionalLight(0xffffff,0.9); key.position.set(8,14,6); scene.add(key);
+const rim=new THREE.DirectionalLight(0xffd59a,0.35); rim.position.set(-6,4,-10); scene.add(rim);
+const mat=(c,m=0.5,r=0.45,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:m,roughness:r},o));
+const M={steel:mat(0x9aa3b0,0.7,0.3),dark:mat(0x2a303b,0.4,0.55),iron:mat(0x3d4656,0.55,0.42),copper:mat(0xc27a46,0.6,0.34),
+  magN:mat(0xc9524a,0.35,0.5),magS:mat(0x4f7fbf,0.35,0.5),si:mat(0x8f9bb0,0.85,0.18),mirror:mat(0xdfe6f2,0.95,0.08),gold:mat(0xd7a54a,0.8,0.3),
+  white:mat(0xd9d6cf,0.1,0.6),glass:new THREE.MeshStandardMaterial({color:0x9ab,metalness:0,roughness:0.1,transparent:true,opacity:0.18,depthWrite:false})};
+const box=(w,h,d,m,x,y,z,parent=scene)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); parent.add(o); return o;};
+const cyl=(r1,r2,h,m,parent=scene,seg=24)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,seg),m); parent.add(o); return o;};
+
+// Beam heights: upstream of the DCM the beam runs 0.35 lower (fixed-exit offset)
+const YLO=-0.35, Z={und0:-20,und1:-15.5,fe:-14,dcm:-11.6,dmm:-9.1,kbv:-6.6,kbh:-5.6,slit:-4.4,att:-3.7,shut:-3.0,bpm:-2.3,col:-0.32};
+
+// undulator
+const und=new THREE.Group(); scene.add(und);
+for(let i=0;i<22;i++){const z=Z.und0+0.15+i*0.2, m=i%2?M.magN:M.magS;
+  box(0.5,0.18,0.17,m,0,YLO+0.19,z,und); box(0.5,0.18,0.17,i%2?M.magS:M.magN,0,YLO-0.19,z,und);}
+box(0.7,0.12,4.6,M.iron,0,YLO+0.38,(Z.und0+Z.und1)/2,und); box(0.7,0.12,4.6,M.iron,0,YLO-0.38,(Z.und0+Z.und1)/2,und);
+const vac=cyl(0.62,0.62,5.0,M.glass,und,40); vac.rotation.x=Math.PI/2; vac.position.set(0,YLO,(Z.und0+Z.und1)/2);
+// electron wiggle
+const NEl=90, elPos=new Float32Array(NEl*3), elT=new Float32Array(NEl).map(()=>Math.random());
+const elGeo=new THREE.BufferGeometry(); elGeo.setAttribute('position',new THREE.BufferAttribute(elPos,3));
+const dotTex=(()=>{const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d');const gr=g.createRadialGradient(16,16,0,16,16,16);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.4,'rgba(255,255,255,.5)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,32,32);return new THREE.CanvasTexture(c);})();
+scene.add(new THREE.Points(elGeo,new THREE.PointsMaterial({map:dotTex,color:0x8fc8ff,size:0.12,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})));
+// ring stub
+const ring=new THREE.Mesh(new THREE.TorusGeometry(26,0.08,8,160,0.42),M.steel); ring.rotation.x=Math.PI/2; ring.rotation.z=Math.PI/2+0.05; ring.position.set(-26,YLO,Z.und0-1.5); scene.add(ring);
+
+// front-end slits
+for(const s of [-1,1]){box(0.08,0.4,0.25,M.steel,s*0.17,YLO,Z.fe);} box(0.6,0.08,0.25,M.steel,0,YLO+0.27,Z.fe); box(0.6,0.08,0.25,M.steel,0,YLO-0.27,Z.fe);
+// DCM: two crystals, θ for 1.0000 Å with Si(111)
+const theta=Math.asin(1/(2*3.1356));
+const dcm=new THREE.Group(); scene.add(dcm); dcm.position.set(0,0,Z.dcm);
+const tank=cyl(0.9,0.9,2.2,M.glass,dcm,40); tank.rotation.x=Math.PI/2; tank.position.y=YLO/2;
+const c1=box(0.5,0.08,0.7,M.si,0,0,0,dcm), c2=box(0.5,0.08,0.7,M.si,0,0,0,dcm);
+const gap=Math.abs(YLO)/2/Math.cos(theta);
+c1.rotation.x=-theta; c1.position.set(0,YLO-0.04,-(Math.abs(YLO)/(2*Math.tan(2*theta)))+0.0);
+c2.rotation.x=-theta; c2.position.set(0,0.04,Math.abs(YLO)/(2*Math.tan(2*theta)));
+const dcmLen=Math.abs(YLO)/Math.tan(2*theta), zA=Z.dcm-dcmLen/2, zB=Z.dcm+dcmLen/2;
+c1.position.set(0,YLO-0.045,-dcmLen/2); c2.position.set(0,0.045,dcmLen/2);
+// DMM parked out of the beam
+const dmm=new THREE.Group(); scene.add(dmm); dmm.position.set(0.95,0,Z.dmm);
+box(0.38,0.06,1.1,mat(0x6a5fa8,0.6,0.25),0,-0.06,-0.3,dmm); box(0.38,0.06,1.1,mat(0x6a5fa8,0.6,0.25),0,0.06,0.3,dmm); box(0.5,0.5,1.8,M.glass,0,0,0,dmm);
+// KB mirrors
+const kbv=box(0.42,0.12,1.3,M.mirror,0,-0.075,Z.kbv); box(0.5,0.18,1.4,M.dark,0,-0.25,Z.kbv);
+const kbh=box(0.12,0.42,1.3,M.mirror,-0.075,0,Z.kbh); box(0.18,0.5,1.4,M.dark,-0.25,0,Z.kbh);
+// slits, attenuators, shutter, BPM
+for(const s of [-1,1]){box(0.06,0.3,0.12,M.steel,s*0.12,0,Z.slit); box(0.3,0.06,0.12,M.steel,0,s*0.12,Z.slit);}
+for(let i=0;i<5;i++){box(0.26,0.32,0.03,mat([0xbfbfbf,0xb07a3a,0x9aa,0xc9b28a,0x7d8b99][i],0.7,0.3),0,i===2?0:0.42,Z.att-0.3+i*0.15);}
+box(0.34,0.34,0.3,M.dark,0,0.32,Z.shut); box(0.22,0.22,0.06,M.gold,0,0.06,Z.shut);
+const bpm=cyl(0.16,0.16,0.4,M.glass); bpm.rotation.x=Math.PI/2; bpm.position.set(0,0,Z.bpm); const bpmR=cyl(0.17,0.17,0.06,M.copper); bpmR.rotation.x=Math.PI/2; bpmR.position.set(0,0,Z.bpm);
+// collimator
+const col=cyl(0.025,0.04,0.5,M.steel); col.rotation.x=Math.PI/2; col.position.set(0,0,-0.42);
+
+// ---- endstation, ~to scale: 1 unit = 100 mm
+// goniometer: spindle along the rotation axis (three −x), motor on the +x side
+const spin=new THREE.Group(); scene.add(spin);
+const motor=cyl(0.2,0.2,0.7,M.dark); motor.rotation.z=Math.PI/2; motor.position.set(1.15,0,0);
+const flange=cyl(0.13,0.16,0.12,M.steel); flange.rotation.z=Math.PI/2; flange.position.set(0.76,0,0);
+const base=box(0.5,0.9,0.5,M.iron,1.2,-0.62,0);
+const head=cyl(0.07,0.09,0.22,M.copper,spin); head.rotation.z=Math.PI/2; head.position.set(0.58,0,0);
+const pinB=cyl(0.03,0.03,0.24,M.steel,spin); pinB.rotation.z=Math.PI/2; pinB.position.set(0.36,0,0);
+const pin=cyl(0.006,0.006,0.2,M.steel,spin,10); pin.rotation.z=Math.PI/2; pin.position.set(0.15,0,0);
+const loop=new THREE.Mesh(new THREE.TorusGeometry(0.04,0.003,6,40),mat(0x7fd3ff,0.2,0.4)); loop.rotation.y=Math.PI/2; spin.add(loop);
+const xtal=new THREE.Mesh(new THREE.CylinderGeometry(0.026,0.026,0.04,6),mat(0xf2c6a0,0.1,0.15,{transparent:true,opacity:0.9,emissive:0x2a1408}));
+xtal.rotation.set(0.6,0.3,0.4); spin.add(xtal);
+const spinAxis=new THREE.Vector3(-1,0,0);
+const phiMid=()=>{const I=img(st.frame); return (I.z0+I.z1)/2*0.1;};
+function setCrystalPhi(){ const phi=(st.spin?st.phiSpin:phiMid())*Math.PI/180; if(G) spin.quaternion.setFromAxisAngle(spinAxisThree,phi); }
+let spinAxisThree=spinAxis.clone();
+// cryostream
+const cryo=new THREE.Group(); scene.add(cryo);
+const nz=cyl(0.05,0.035,0.7,M.white,cryo); nz.position.y=0.5; const nzb=cyl(0.09,0.09,0.4,M.white,cryo); nzb.position.y=1.0;
+cryo.rotation.x=-0.75;
+const mist=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.3,20,1,true),new THREE.MeshBasicMaterial({color:0xcfe9ff,transparent:true,opacity:0.12,depthWrite:false,side:THREE.DoubleSide}));
+mist.position.y=0.0; cryo.add(mist);
+// beamstop on an arm from +x (matches the shadow on the frames)
+const bs=cyl(0.012,0.012,0.04,M.gold); bs.rotation.x=Math.PI/2; bs.position.set(0,0,0.32);
+const bsArm=box(1.2,0.006,0.012,M.steel,0.6,0,0.32);
+// detector
+let detTex=null, detGroup=new THREE.Group(); scene.add(detGroup);
+// beam
+const beamMat=new THREE.MeshBasicMaterial({color:0xffc757,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false});
+function beamSeg(a,b,r0,r1){const d=new THREE.Vector3().subVectors(b,a), L=d.length(); const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,L,12,1,true),beamMat);
+  m.position.copy(a).addScaledVector(d,0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize()); scene.add(m); return m;}
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const beamPath=[V(0,YLO,Z.und0+0.5),V(0,YLO,zA),V(0,0,zB),V(0,0,Z.kbv),V(0,0,Z.kbh),V(0,0,0),V(0,0,0.32)];
+const beamR=[0.05,0.06,0.06,0.07,0.06,0.006,0.006];
+for(let i=0;i<beamPath.length-1;i++) beamSeg(beamPath[i],beamPath[i+1],beamR[i],beamR[i+1]);
+const NPh=260, phPos=new Float32Array(NPh*3), phT=new Float32Array(NPh).map(()=>Math.random());
+const segLen=[]; let totLen=0; for(let i=0;i<beamPath.length-1;i++){const l=beamPath[i].distanceTo(beamPath[i+1]); segLen.push(l); totLen+=l;}
+const phGeo=new THREE.BufferGeometry(); phGeo.setAttribute('position',new THREE.BufferAttribute(phPos,3));
+scene.add(new THREE.Points(phGeo,new THREE.PointsMaterial({map:dotTex,color:0xffd88a,size:0.07,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})));
+// compression break marks
+for(const zb of [-1.45,-7.9,-14.8]){const g=new THREE.Group(); for(const s of [-1,1]){const l=box(0.5,0.012,0.012,mat(0x939aa7,0,1),0,s*0.5,zb,g); l.rotation.y=0.5; const l2=box(0.5,0.012,0.012,mat(0x939aa7,0,1),0,s*0.5,zb+0.12,g); l2.rotation.y=0.5;} scene.add(g);}
+// diffracted rays
+const rayGeo=new THREE.BufferGeometry(); rayGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6*400),3));
+const rays=new THREE.LineSegments(rayGeo,new THREE.LineBasicMaterial({color:0xffc757,transparent:true,opacity:0.38,blending:THREE.AdditiveBlending,depthWrite:false})); scene.add(rays);
+const selRayGeo=new THREE.BufferGeometry(); selRayGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+const selRay=new THREE.Line(selRayGeo,new THREE.LineBasicMaterial({color:0xff6fae})); scene.add(selRay); selRay.visible=false;
+const detPt=(x,y)=>toThree([(x-G.ORGX)*G.QX/100,(y-G.ORGY)*G.QY/100,G.F/100]);
+function updateRays(){
+  if(!G){rays.visible=false;return;}
+  const list=wedgeRefl.filter(i=>REFL[i][7]>0&&REFL[i][6]/REFL[i][7]>=3).sort((a,b)=>REFL[b][6]/REFL[b][7]-REFL[a][6]/REFL[a][7]).slice(0,400);
+  const p=rayGeo.attributes.position.array; let o=0;
+  for(const i of list){const q=detPt(REFL[i][3],REFL[i][4]); p[o++]=0;p[o++]=0;p[o++]=0;p[o++]=q.x;p[o++]=q.y;p[o++]=q.z;}
+  rayGeo.setDrawRange(0,o/3); rayGeo.attributes.position.needsUpdate=true; rays.visible=st.rays;
+  if(st.sel>=0){const q=detPt(REFL[st.sel][3],REFL[st.sel][4]); const a=selRayGeo.attributes.position.array; a.set([0,0,0,q.x,q.y,q.z]); selRayGeo.attributes.position.needsUpdate=true; selRay.visible=true;} else selRay.visible=false;
+}
+function buildDetector(){
+  const W=G.NX*G.QX/100, Hh=G.NY*G.QY/100, c=detPt(G.NX/2,G.NY/2);
+  detTex=new THREE.CanvasTexture(frameCanvas); detTex.encoding=THREE.sRGBEncoding; detTex.minFilter=THREE.LinearFilter; detTex.generateMipmaps=false;
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(W,Hh),new THREE.MeshBasicMaterial({map:detTex,toneMapped:false}));
+  face.rotation.y=Math.PI; face.position.copy(c); detGroup.add(face);
+  const housing=box(W+0.16,Hh+0.16,0.55,mat(0x2b313b,0.45,0.5),c.x,c.y,c.z+0.29,detGroup);
+  const frame=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W+0.16,Hh+0.16,0.55)),new THREE.LineBasicMaterial({color:0x5a6474})); frame.position.copy(housing.position); detGroup.add(frame);
+  const rail=box(0.16,0.16,2.6,M.steel,c.x,-2.0,1.4); box(0.3,1.75,0.3,M.iron,c.x,-1.0,c.z+0.4);
+  // distance marker
+  const dm=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(1.95,-1.55,0),V(1.95,-1.55,c.z),V(1.95,-1.48,c.z),V(1.95,-1.62,c.z),V(1.95,-1.55,c.z),V(1.95,-1.55,0),V(1.95,-1.48,0),V(1.95,-1.62,0)]),new THREE.LineBasicMaterial({color:0x939aa7}));
+  scene.add(dm);
+}
+
+// labels
+const labelLayer=$('#labels'), labels=[];
+function L(html,pos,cls=''){const el=document.createElement('div'); el.className='lbl '+cls; el.innerHTML=html; labelLayer.appendChild(el); labels.push({el,pos,cls}); }
+L('<b>Undulator</b> · in vacuum',V(0.9,YLO+0.3,(Z.und0+Z.und1)/2));
+L('Storage ring',V(-1.6,YLO,Z.und0-1.2),'dim');
+L('Front-end slits',V(0.5,YLO+0.35,Z.fe));
+L('<b>Double-crystal mono</b> · Bragg θ 9.2°',V(1.0,0.35,Z.dcm));
+L('Multilayer mono · out of beam',V(1.25,0.35,Z.dmm),'dim');
+L('<b>KB mirrors</b> · V then H focus',V(0.6,0.35,(Z.kbv+Z.kbh)/2));
+L('Slits · attenuators · shutter',V(0.55,0.62,Z.att));
+L('Beam position monitor',V(0.35,0.2,Z.bpm),'dim');
+L('<b>Crystal</b> on goniometer',V(-0.1,-0.18,0));
+L('Cryostream · 100 K',V(0,0.95,-0.62));
+L('Beamstop',V(0.12,-0.06,0.32),'dim');
+L('<b>DECTRIS EIGER 16M</b>',V(-1.6,1.9,2.4));
+L('225 mm',V(1.95,-1.7,1.1),'dim');
+L('X-rays · λ 1.0000 Å',V(-0.3,0.14,-1.6),'beam');
+const vtmp=new THREE.Vector3();
+function updateLabels(){
+  const w=glEl.clientWidth,h=glEl.clientHeight, camD=camera.position.distanceTo(controls.target);
+  for(const l of labels){
+    vtmp.copy(l.pos).project(camera);
+    const off=vtmp.z>1||vtmp.x<-1.05||vtmp.x>1.05||vtmp.y<-1.05||vtmp.y>1.05;
+    const far=l.pos.distanceTo(camera.position)>camD*2.2;
+    l.el.style.opacity=off||far?0:1;
+    l.el.style.transform=`translate(${((vtmp.x+1)/2*w).toFixed(1)}px,${((1-vtmp.y)/2*h).toFixed(1)}px) translate(-2px,-50%)`;
+  }
+}
+
+// camera
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.08; controls.minDistance=0.6; controls.maxDistance=70;
+const CAMS={full:{t:V(0,1.3,-8.4),p:V(-30,17.5,-20.5)}, end:{t:V(0.25,-0.1,1.0),p:V(-3.4,1.7,-3.1)}};
+camera.position.copy(CAMS.full.p); controls.target.copy(CAMS.full.t);
+st.cam='full'; let tween=null;
+function camTo(k){st.cam=k; $('#vFull').setAttribute('aria-pressed',String(k==='full')); $('#vEnd').setAttribute('aria-pressed',String(k==='end'));
+  const c=CAMS[k]; if(reduceMotion){controls.target.copy(c.t);camera.position.copy(c.p);return;} tween={t0:controls.target.clone(),p0:camera.position.clone(),t1:c.t,p1:c.p,k:0};}
+$('#vFull').addEventListener('click',()=>camTo('full')); $('#vEnd').addEventListener('click',()=>camTo('end'));
+
+/* ================= reciprocal-space inset ================= */
+const gl2=$('#gl2'), insetEl=$('#inset');
+const r2=new THREE.WebGLRenderer({antialias:true,alpha:true}); r2.setPixelRatio(Math.min(2,devicePixelRatio||1)); r2.setClearColor(0x000000,0); gl2.appendChild(r2.domElement);
+const s2=new THREE.Scene(); const cam2=new THREE.PerspectiveCamera(38,1,0.01,20);
+cam2.position.set(1.15,0.55,0.75); const ctl2=new THREE.OrbitControls(cam2,r2.domElement); ctl2.target.set(0,0,-0.08); ctl2.enableDamping=true; ctl2.minDistance=0.35; ctl2.maxDistance=4;
+const lattice=new THREE.Group(); s2.add(lattice);
+let lPos=null, lCol=null, lP0=null, lGeo=null, lPts=null, nShow=0, lCode=null, lHKL=null;
+const ewald=new THREE.Group(); s2.add(ewald);
+const sph=new THREE.Mesh(new THREE.SphereGeometry(1,96,64),new THREE.MeshBasicMaterial({color:0xffc757,transparent:true,opacity:0.07,depthWrite:false,side:THREE.DoubleSide}));
+ewald.add(sph);
+for(const rot of [[0,0,0],[Math.PI/2,0,0],[0,Math.PI/2,0]]){const c=new THREE.Mesh(new THREE.TorusGeometry(1,0.0018,4,256),new THREE.MeshBasicMaterial({color:0xffc757,transparent:true,opacity:0.45})); c.rotation.set(...rot); ewald.add(c);}
+const beamIn=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,-2.2),V(0,0,0.15)]),new THREE.LineBasicMaterial({color:0xffc757,transparent:true,opacity:0.7})); s2.add(beamIn);
+const originDot=new THREE.Mesh(new THREE.SphereGeometry(0.008,12,8),new THREE.MeshBasicMaterial({color:0xffffff})); s2.add(originDot);
+const axisLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(-0.7,0,0),V(0.7,0,0)]),new THREE.LineDashedMaterial({color:0x939aa7,dashSize:0.02,gapSize:0.015})); axisLine.computeLineDistances(); s2.add(axisLine);
+const selVec=new THREE.Line(new THREE.BufferGeometry().setFromPoints([V(0,0,-1),V(0,0,0)]),new THREE.LineBasicMaterial({color:0xff6fae})); s2.add(selVec); selVec.visible=false;
+const selDot=new THREE.Mesh(new THREE.SphereGeometry(0.009,12,8),new THREE.MeshBasicMaterial({color:0xff6fae})); lattice.add(selDot); selDot.visible=false;
+const lbl2=[]; function L2(text,pos){const el=document.createElement('div'); el.className='lbl'; el.style.fontSize='10px'; el.innerHTML=text; insetEl.appendChild(el); el.style.pointerEvents='none'; lbl2.push({el,pos});}
+L2('<b>Ewald sphere</b>',V(0.72,0.72,-1)); L2('origin 0 0 0',V(0.02,-0.03,0.0)); L2('rotation axis',V(-0.62,0.02,0)); L2('beam',V(0,0.03,-1.9));
+
+const ptMat=new THREE.ShaderMaterial({
+  uniforms:{px:{value:1}},
+  vertexShader:'attribute vec3 color; attribute float size; varying vec3 vC; uniform float px; void main(){vC=color; vec4 mv=modelViewMatrix*vec4(position,1.); gl_PointSize=max(1.,size*px*(0.75/-mv.z)); gl_Position=projectionMatrix*mv;}',
+  fragmentShader:'varying vec3 vC; void main(){vec2 d=gl_PointCoord-.5; float r=dot(d,d); if(r>.25) discard; gl_FragColor=vec4(vC,smoothstep(.25,.1,r));}',
+  transparent:true,depthWrite:true});
+let lSize=null;
+function buildLattice(){
+  const n=RECIP.length/4; lP0=new Float32Array(n*3); lHKL=new Int8Array(n*3); lCode=new Uint8Array(n);
+  const i8=new Int8Array(RECIP.buffer), u8=RECIP;
+  for(let i=0;i<n;i++){const h=i8[i*4],k=i8[i*4+1],l=i8[i*4+2]; lHKL[i*3]=h;lHKL[i*3+1]=k;lHKL[i*3+2]=l; lCode[i]=u8[i*4+3]; const r=recipVec(h,k,l); lP0[i*3]=r[0];lP0[i*3+1]=r[1];lP0[i*3+2]=r[2];}
+  lPos=new Float32Array(n*3); lCol=new Float32Array(n*3); lSize=new Float32Array(n);
+  for(let i=0;i<n;i++){const t=toThree([lP0[i*3],lP0[i*3+1],lP0[i*3+2]]); lPos[i*3]=t.x;lPos[i*3+1]=t.y;lPos[i*3+2]=t.z;}
+  lGeo=new THREE.BufferGeometry(); lGeo.setAttribute('position',new THREE.BufferAttribute(lPos,3)); lGeo.setAttribute('color',new THREE.BufferAttribute(lCol,3)); lGeo.setAttribute('size',new THREE.BufferAttribute(lSize,1));
+  lPts=new THREE.Points(lGeo,ptMat); lattice.add(lPts);
+  setDmin(st.dmin);
+}
+function setDmin(d){
+  st.dmin=d; $('#dminO').textContent=d.toFixed(1)+' Å';
+  if(!lP0) return; const n=lCode.length, inv2=1/(d*d); let k=0;
+  while(k<n){const x=lP0[k*3],y=lP0[k*3+1],z=lP0[k*3+2]; if(x*x+y*y+z*z>inv2) break; k++;}
+  nShow=k; lGeo.setDrawRange(0,nShow); updateLattice();
+}
+const GOLD=[1,0.78,0.34], ICE=[0.5,0.83,1], DIM=[0.17,0.21,0.28];
+function updateLattice(){
+  if(!lP0||!G) return;
+  let p1,p2,sweep0=0;
+  if(st.spin){p1=st.phiSpin-0.5; p2=st.phiSpin+0.5;} else {const I=img(st.frame); p1=I.z0*0.1-0.12; p2=I.z1*0.1+0.12;}
+  const Ra=rotMat(G.axis,p1), Rb=rotMat(G.axis,p2), R0=rotMat(G.axis,sweep0), s0=G.s0;
+  const lam2=0; let onNow=0;
+  for(let i=0;i<nShow;i++){
+    const p=[lP0[i*3],lP0[i*3+1],lP0[i*3+2]], pp=p[0]*p[0]+p[1]*p[1]+p[2]*p[2];
+    const a=mv(Ra,p), b=mv(Rb,p), q0=mv(R0,p);
+    const fa=pp+2*(s0[0]*a[0]+s0[1]*a[1]+s0[2]*a[2]), fb=pp+2*(s0[0]*b[0]+s0[1]*b[1]+s0[2]*b[2]), f0=pp+2*(s0[0]*q0[0]+s0[1]*q0[1]+s0[2]*q0[2]);
+    const w=Math.min(1,0.25+lCode[i]/150);
+    let c=DIM, sz=1.2+1.2*w;
+    if((fa<0)!==(fb<0)){c=GOLD; sz=5; onNow++;}
+    else if((f0<0)!==(fa<0)){c=ICE; sz=2+1.2*w;}
+    const ww=c===DIM?w*0.8+0.2:Math.max(0.55,w);
+    lCol[i*3]=c[0]*ww; lCol[i*3+1]=c[1]*ww; lCol[i*3+2]=c[2]*ww; lSize[i]=sz;
+  }
+  lGeo.attributes.color.needsUpdate=true; lGeo.attributes.size.needsUpdate=true;
+  const phi=st.spin?st.phiSpin:phiMid();
+  lattice.quaternion.setFromAxisAngle(spinAxisThree,phi*Math.PI/180);
+  $('#insetSub').textContent=st.spin?`Full sweep · φ ${phi.toFixed(0)}° of 220° · ${onNow} on the sphere`:`φ ${phi.toFixed(2)}° · ${onNow} points on the sphere`;
+  updateSelected();
+}
+function updateSelected(){
+  if(!G) return;
+  if(st.sel<0){selDot.visible=false; selVec.visible=false; return;}
+  const R=REFL[st.sel], t=toThree(recipVec(R[0],R[1],R[2])); selDot.position.copy(t); selDot.visible=true;
+  const w=t.clone().applyQuaternion(lattice.quaternion); const c=toThree(G.s0).multiplyScalar(-1);
+  selVec.geometry.setFromPoints([c,w]); selVec.visible=true;
+}
+const dminR=$('#dminR'); dminR.addEventListener('input',()=>setDmin(+dminR.value));
+$('#bSpin').addEventListener('click',()=>{st.spin=!st.spin; $('#bSpin').setAttribute('aria-pressed',String(st.spin)); if(st.spin){st.phiSpin=0; setPlay(false);} else updateLattice(); setCrystalPhi();});
+$('#bBig').addEventListener('click',()=>{const b=!insetEl.classList.contains('big'); insetEl.classList.toggle('big',b); $('#bBig').setAttribute('aria-pressed',String(b));});
+
+/* ---------------- sizing & loop ---------------- */
+function resize(){
+  const w=glEl.clientWidth,h=glEl.clientHeight; if(w&&h){renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();}
+  const w2=gl2.clientWidth,h2=gl2.clientHeight; if(w2&&h2){r2.setSize(w2,h2,false); cam2.aspect=w2/h2; cam2.updateProjectionMatrix(); ptMat.uniforms.px.value=Math.min(2,devicePixelRatio||1)*h2/360;}
+}
+new ResizeObserver(resize).observe(glEl); new ResizeObserver(resize).observe(gl2); new ResizeObserver(sizeViewer).observe(viewerEl);
+resize();
+
+let last=performance.now(), spinAcc=0;
+function tick(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now; const sp=reduceMotion?0:1;
+  // electrons wiggle through the undulator
+  for(let i=0;i<NEl;i++){elT[i]=(elT[i]+dt*0.12*sp)%1; const z=Z.und0-0.5+elT[i]*(Z.und1-Z.und0+1); elPos[i*3]=0.05*Math.sin((z-Z.und0)*Math.PI/0.4)*(z>Z.und0&&z<Z.und1?1:0); elPos[i*3+1]=YLO; elPos[i*3+2]=z;}
+  elGeo.attributes.position.needsUpdate=true;
+  for(let i=0;i<NPh;i++){phT[i]=(phT[i]+dt*0.05*sp)%1; let s=phT[i]*totLen, j=0; while(j<segLen.length-1&&s>segLen[j]){s-=segLen[j];j++;} const a=beamPath[j], b=beamPath[j+1], f=Math.min(1,s/segLen[j]);
+    phPos[i*3]=a.x+(b.x-a.x)*f; phPos[i*3+1]=a.y+(b.y-a.y)*f; phPos[i*3+2]=a.z+(b.z-a.z)*f;}
+  phGeo.attributes.position.needsUpdate=true;
+  if(st.spin&&G){st.phiSpin+=dt*(reduceMotion?6:22); if(st.phiSpin>220) st.phiSpin=0; spinAcc+=dt; if(spinAcc>0.06){spinAcc=0; updateLattice(); setCrystalPhi();}}
+  if(tween){tween.k=Math.min(1,tween.k+dt*1.3); const e=tween.k<.5?2*tween.k*tween.k:1-Math.pow(-2*tween.k+2,2)/2; controls.target.lerpVectors(tween.t0,tween.t1,e); camera.position.lerpVectors(tween.p0,tween.p1,e); if(tween.k>=1) tween=null;}
+  controls.update(); ctl2.update();
+  renderer.render(scene,camera); r2.render(s2,cam2); updateLabels();
+  const w2=gl2.clientWidth,h2=gl2.clientHeight;
+  for(const l of lbl2){vtmp.copy(l.pos); if(l.pos===lbl2[1].pos){} vtmp.project(cam2); l.el.style.opacity=vtmp.z>1?0:1; l.el.style.transform=`translate(${((vtmp.x+1)/2*w2).toFixed(1)}px,${((1-vtmp.y)/2*h2).toFixed(1)}px) translate(-2px,-50%)`;}
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ---------------- boot ---------------- */
+(async()=>{
+  try{
+    const b64=t=>{const bin=atob(t.trim()), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u.buffer;};
+    const [xr,rb,fb]=await Promise.all([fetch('xds.json').then(r=>r.json()),fetch('recip.txt').then(r=>r.text()).then(b64),fetch('refl.txt').then(r=>r.text()).then(b64)]);
+    G=xr.geo; RECIP=new Uint8Array(rb);
+    // XDS reflections, 10 bytes each: h,k,l (int8), I/σ×4 (uint8), x, y, z×10 (uint16 LE); sorted by z
+    const dv=new DataView(fb); NR=fb.byteLength/10; const RH=new Int8Array(NR),RK=new Int8Array(NR),RL=new Int8Array(NR),RQ=new Uint8Array(NR),RX=new Uint16Array(NR),RY=new Uint16Array(NR); RZ=new Uint16Array(NR);
+    for(let i=0,o=0;i<NR;i++,o+=10){RH[i]=dv.getInt8(o);RK[i]=dv.getInt8(o+1);RL[i]=dv.getInt8(o+2);RQ[i]=dv.getUint8(o+3);RX[i]=dv.getUint16(o+4,true);RY[i]=dv.getUint16(o+6,true);RZ[i]=dv.getUint16(o+8,true);}
+    REFL=new Proxy({},{get:(t,p)=>p==='length'?NR:[RH[+p],RK[+p],RL[+p],RX[+p],RY[+p],RZ[+p]/10,RQ[+p]/4,1]});
+    spinAxisThree=toThree(G.axis).normalize();
+    // Ewald sphere centre at −s0 (lab), radius 1/λ
+    const c=toThree(G.s0).multiplyScalar(-1); ewald.position.copy(c); ewald.scale.setScalar(1/G.lam);
+    const ax=spinAxisThree.clone().multiplyScalar(0.7); axisLine.geometry.setFromPoints([ax.clone().negate(),ax]); axisLine.computeLineDistances();
+    // resolution at the detector edges
+    const dEdge=Math.max(pxToD(0,G.ORGY),pxToD(G.NX,G.ORGY),pxToD(G.ORGX,0),pxToD(G.ORGX,G.NY)), dCorner=pxToD(0,0);
+    $('#rEdge').textContent=`${dEdge.toFixed(2)} Å side · ${dCorner.toFixed(2)} Å corner`;
+    buildDetector(); buildLattice(); collectWedge(); updateRays(); setCrystalPhi(); drawViewer();
+  }catch(e){ $('#vload').textContent='Reflection data could not be loaded'; }
+  setContrast(); setFrame(20); preloadAll();
+})();
+})();
+</script>
+
+</body></html>
