@@ -1,0 +1,915 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Frozen in the Beam</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a one-screen lab bench. The opened-up column fills the left, the detector console sits on the right; field notes follow below. Deliberately single dark theme: a darkened microscope room. */
+:root{
+  color-scheme: dark;
+  --bg:#0a0d12;
+  --panel:#10151d;
+  --panel-2:#161d28;
+  --line:#243041;
+  --fg:#ebe6dc;
+  --muted:#8f99a8;
+  --copper:#d48b57;
+  --copper-2:#f0b48a;
+  --beam:#93d4ff;
+  --good:#86d6a2;
+  --warn:#e8bd62;
+  --bad:#ec8273;
+  --display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+html{background:var(--bg)}
+body{
+  background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+  padding-block:16px 56px;
+}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--beam);outline-offset:2px}
+
+.app{
+  display:grid;grid-template-columns:minmax(0,1fr) 396px;gap:14px;
+  height:calc(100svh - 32px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  min-height:640px;max-height:1020px;
+}
+.scene{position:relative;min-width:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;
+  background:radial-gradient(120% 80% at 30% 20%, #141c28 0%, var(--panel) 55%, #0b0f15 100%)}
+.gl{position:absolute;inset:0}
+.gl canvas{display:block;width:100%;height:100%;touch-action:none}
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;font:500 11px/1.25 var(--mono);color:var(--muted);white-space:nowrap;letter-spacing:.01em;
+  display:flex;align-items:center;gap:6px;will-change:transform}
+.lbl::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--copper);flex:none}
+.lbl b{color:var(--fg);font-weight:500}
+.lbl.focus::before{background:var(--beam)}
+.lbl.callout{color:var(--beam)}
+.lbl.callout::before{background:var(--beam)}
+
+.intro{position:absolute;top:18px;left:20px;max-width:25rem;pointer-events:none}
+.eyebrow{margin:0 0 6px;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--copper)}
+h1{margin:0;font-family:var(--display);font-weight:600;font-size:clamp(28px,3.4vw,44px);line-height:1.02;letter-spacing:-.02em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--beam);font-weight:700}
+.lede{margin:10px 0 0;color:var(--muted);font-size:14px;max-width:34ch}
+
+.scene-bar{position:absolute;left:16px;right:16px;bottom:14px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.hint{margin:0;font:400 11px/1.3 var(--mono);color:var(--muted)}
+.seg{display:inline-flex;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:999px;font:500 12px/1 var(--body);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.chip-btn{border:1px solid var(--line);background:var(--panel-2);padding:7px 12px;border-radius:999px;font:500 12px/1 var(--body);cursor:pointer}
+.chip-btn:hover{border-color:var(--copper)}
+.chip-btn[aria-pressed="true"]{border-color:var(--beam);color:var(--beam)}
+
+.console{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:14px}
+.screen-wrap{position:relative;border-radius:10px;overflow:hidden;background:#000;border:1px solid var(--line);aspect-ratio:1/1;max-width:100%}
+#screen{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#screen:active{cursor:grabbing}
+.status{position:absolute;left:8px;top:8px;max-width:calc(100% - 110px);font:500 11px/1.3 var(--mono);padding:5px 8px;border-radius:6px;background:rgba(8,10,14,.78);border-left:3px solid var(--muted)}
+.status.good{border-color:var(--good)} .status.warn{border-color:var(--warn)} .status.bad{border-color:var(--bad)}
+.leveltag{position:absolute;right:8px;top:8px;font:500 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:5px 7px;border-radius:6px;background:rgba(8,10,14,.78);color:var(--copper-2)}
+.screen-hint{margin:-6px 0 0;font:400 11px/1.3 var(--mono);color:var(--muted)}
+.mags{display:flex;width:100%}
+.mags button{flex:1;padding:8px 4px}
+.mags button kbd{font:400 9px/1 var(--mono);opacity:.6;margin-left:3px}
+
+.ctrl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:baseline}
+.ctrl label{font:500 12px/1.2 var(--body);color:var(--fg)}
+.ctrl output{justify-self:end;font:500 12px/1 var(--mono);color:var(--copper-2);font-variant-numeric:tabular-nums}
+.ctrl input{grid-column:1/-1;width:100%;accent-color:var(--copper);margin:2px 0 0}
+.ctrl small{grid-column:1/-1;color:var(--muted);font-size:11.5px;line-height:1.35}
+.controls{display:flex;flex-direction:column;gap:12px}
+.toggles{display:flex;flex-wrap:wrap;gap:8px}
+
+.diag{display:grid;grid-template-columns:118px minmax(0,1fr);gap:10px;align-items:start}
+.diag figure{margin:0;min-width:0}
+#ps{display:block;width:118px;height:118px;border-radius:8px;background:#000;border:1px solid var(--line)}
+#ctf{display:block;width:100%;height:118px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line)}
+figcaption{margin-top:5px;font:400 10.5px/1.3 var(--mono);color:var(--muted)}
+
+.readouts{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:0;padding:12px 0 0;border-top:1px solid var(--line)}
+.readouts div{min-width:0}
+.readouts dt{font:500 10px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.readouts dd{margin:2px 0 0;font:500 13px/1.3 var(--mono);font-variant-numeric:tabular-nums;color:var(--fg);overflow-wrap:anywhere}
+.keys{margin:0;font:400 11px/1.6 var(--mono);color:var(--muted)}
+kbd{font:500 10.5px/1 var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 4px;color:var(--fg)}
+
+.notes{max-width:1180px;margin:56px auto 0;display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:40px}
+.notes aside h2{font-family:var(--display);font-weight:600;font-size:30px;line-height:1.05;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.notes aside p{color:var(--muted);font-size:14px}
+.notes .body{max-width:66ch;display:flex;flex-direction:column;gap:28px}
+.notes h3{margin:0 0 6px;font-family:var(--display);font-weight:600;font-size:20px;letter-spacing:-.01em;text-wrap:balance}
+.notes h3 span{font:500 11px/1 var(--mono);color:var(--copper);letter-spacing:.1em;margin-right:8px;vertical-align:2px}
+.notes p{margin:0 0 10px}
+.notes strong{color:var(--copper-2);font-weight:600}
+.notes .try{color:var(--beam)}
+.foot{max-width:1180px;margin:40px auto 0;padding-top:16px;border-top:1px solid var(--line);font:400 11.5px/1.6 var(--mono);color:var(--muted)}
+
+@media (max-width:960px){
+  .app{grid-template-columns:1fr;height:auto;max-height:none;min-height:0}
+  .scene{height:min(64svh,600px);min-height:380px}
+  .console{overflow:visible}
+  .notes{grid-template-columns:1fr;gap:16px}
+}
+@media (max-width:520px){
+  .lede{display:none}
+  .intro{top:12px;left:14px}
+  .hint{display:none}
+  .lbl{font-size:9.5px}
+}
+</style>
+
+<main class="app">
+  <section class="scene" id="scene" aria-label="Interactive 3D model of a cryo transmission electron microscope">
+    <div class="gl" id="gl"></div>
+    <div class="labels" id="labels"></div>
+    <header class="intro">
+      <p class="eyebrow">Single-particle cryo-EM</p>
+      <h1>Frozen in <em>the beam</em></h1>
+      <p class="lede">A transmission electron microscope, opened up. Drag the grid under the beam, change defocus and dose, and watch β-galactosidase come out of the noise.</p>
+    </header>
+    <div class="scene-bar">
+      <div class="seg" role="group" aria-label="Column layout">
+        <button id="bAssembled" aria-pressed="false">Assembled</button>
+        <button id="bExploded" aria-pressed="true">Exploded</button>
+      </div>
+      <button id="bView" class="chip-btn" aria-pressed="false">Look at the grid</button>
+      <p class="hint">Drag the grid to move the stage · drag elsewhere to orbit · scroll to zoom</p>
+    </div>
+  </section>
+
+  <aside class="console" aria-label="Detector and microscope controls">
+    <div class="screen-wrap">
+      <canvas id="screen" width="256" height="256" aria-label="Live image on the detector"></canvas>
+      <span class="status" id="status">Loading…</span>
+      <span class="leveltag" id="levelTag">Exposure</span>
+    </div>
+    <p class="screen-hint">Drag the image to move the stage · double-tap to zoom in</p>
+
+    <div class="seg mags" id="mags" role="group" aria-label="Magnification">
+      <button data-l="0">Atlas<kbd>1</kbd></button>
+      <button data-l="1">Square<kbd>2</kbd></button>
+      <button data-l="2">Hole<kbd>3</kbd></button>
+      <button data-l="3">Exposure<kbd>4</kbd></button>
+    </div>
+
+    <div class="controls">
+      <div class="ctrl">
+        <label for="dfR">Defocus (underfocus)</label><output id="dfO">1.6 µm</output>
+        <input id="dfR" type="range" min="0" max="4" step="0.1" value="1.6">
+      </div>
+      <div class="ctrl">
+        <label for="doseR">Total dose</label><output id="doseO">40 e⁻/Å²</output>
+        <input id="doseR" type="range" min="2" max="80" step="1" value="40">
+      </div>
+      <div class="ctrl">
+        <label for="tiltR">Stage tilt</label><output id="tiltO">0°</output>
+        <input id="tiltR" type="range" min="-60" max="60" step="1" value="0">
+      </div>
+      <div class="toggles">
+        <button class="chip-btn" id="bPick" aria-pressed="false">Pick particles <kbd>P</kbd></button>
+        <button class="chip-btn" id="bLP" aria-pressed="true">Low-pass view <kbd>L</kbd></button>
+        <button class="chip-btn" id="bFind">Find a good hole <kbd>H</kbd></button>
+      </div>
+    </div>
+
+    <div class="diag">
+      <figure><canvas id="ps" width="128" height="128" aria-label="Power spectrum of the current exposure"></canvas><figcaption>Power spectrum</figcaption></figure>
+      <figure><canvas id="ctf" aria-label="Contrast transfer function plot"></canvas><figcaption>CTF vs resolution · <span id="zero">—</span></figcaption></figure>
+    </div>
+
+    <dl class="readouts">
+      <div><dt>Stage x, y</dt><dd id="rPos">—</dd></div>
+      <div><dt>Ice at beam</dt><dd id="rIce">—</dd></div>
+      <div><dt>Pixel size</dt><dd id="rPix">—</dd></div>
+      <div><dt>Field of view</dt><dd id="rFov">—</dd></div>
+      <div><dt>Particles in view</dt><dd id="rN">—</dd></div>
+      <div><dt>Electrons / pixel</dt><dd id="rE">—</dd></div>
+    </dl>
+    <p class="keys"><kbd>1</kbd>–<kbd>4</kbd> magnification · <kbd>[</kbd> <kbd>]</kbd> defocus · arrows move stage · <kbd>X</kbd> exploded · <kbd>G</kbd> grid view · <kbd>R</kbd> reset view</p>
+  </aside>
+</main>
+
+<section class="notes">
+  <aside>
+    <h2>How a frozen protein becomes a picture</h2>
+    <p>Field notes for the model above, from gun to detector to map.</p>
+  </aside>
+  <div class="body">
+    <div>
+      <h3><span>01</span>The column, top to bottom</h3>
+      <p>The <strong>field-emission gun</strong> pulls electrons from a sharp tip and accelerates them through 300 kV, which gives them a wavelength of about 0.02 Å. Two <strong>condenser lenses</strong> and the C2 aperture shape them into a nearly parallel beam over the area you want to image.</p>
+      <p>The beam crosses the <strong>grid</strong> in the gap of the <strong>objective lens</strong>, which forms the first and most important image. Its aperture, at the back focal plane, removes wide-angle scattering. The <strong>projector lenses</strong> magnify that image onto a <strong>direct electron detector</strong>, which counts single electrons and records each exposure as a movie. Every lens is an electromagnet: a copper coil in an iron yoke. The cutaways show both.</p>
+    </div>
+    <div>
+      <h3><span>02</span>Why we image out of focus</h3>
+      <p>Protein in ice barely absorbs electrons. It shifts the phase of the electron wave by a few percent, and a perfectly focused image of a phase object has almost no contrast. Defocusing the objective by 0.5–3 µm converts phase shifts into intensity through the <strong>contrast transfer function</strong>, CTF ≈ sin χ(k), plus about 7% amplitude contrast.</p>
+      <p>More defocus gives stronger low-resolution contrast, but the CTF oscillates faster and flips sign at each zero. Those zeros are the <strong>Thon rings</strong> in the power spectrum. Processing software fits them to measure the defocus of every micrograph and corrects for it.</p>
+      <p class="try">Try it: set defocus to 0 and the particles almost vanish. Push it to 3.5 µm and they stand out while the rings crowd together.</p>
+    </div>
+    <div>
+      <h3><span>03</span>The grid, from millimetres to nanometres</h3>
+      <p>The grid is a 3 mm copper disc with a 300-mesh lattice of bars (about 85 µm pitch) carrying a holey carbon film; here R1.2/1.3, meaning 1.2 µm holes every 2.5 µm. A few microlitres of protein are blotted to a thin film and plunged into liquid ethane, which freezes the water as a glass, <strong>vitreous ice</strong>, before crystals can form.</p>
+      <p>Ice thickness varies across the grid, so a session goes atlas → square → hole → exposure, and data are taken only where the ice is a little thicker than the particle. On this grid, bars block the beam, some squares are dry or torn, thick ice goes dark, and ice is thinnest at the centre of each hole.</p>
+      <p class="try">Try it: in the Atlas view, drag toward the dark squares, then drop to Exposure and compare the contrast.</p>
+    </div>
+    <div>
+      <h3><span>04</span>Dose and noise</h3>
+      <p>Electrons break bonds in the protein, so the total exposure is held to about 40–60 e⁻/Å², spread over dozens of movie frames that are aligned to undo beam-induced motion. At the 4 Å pixels used here, 40 e⁻/Å² is about 640 electrons per pixel. Shot noise is then about as large as the protein signal, which is why a single micrograph looks grainy and why the low-pass view helps the eye.</p>
+      <p class="try">Try it: drop the dose below 10 e⁻/Å². The particles sink into the noise and the Thon rings fade.</p>
+    </div>
+    <div>
+      <h3><span>05</span>From particles to a map</h3>
+      <p>Each particle is a 2D projection of the same molecule in a random orientation. Software picks hundreds of thousands of them, sorts them by view in 2D classification, estimates their angles and back-projects them into a 3D map. Tilting the stage helps when particles all lie the same way on the grid, at the cost of thicker ice along the beam.</p>
+      <p><strong>β-galactosidase</strong> from <em>E. coli</em> is a D2-symmetric tetramer of 4 × 116 kDa (about 465 kDa, roughly 17 × 13 × 9 nm), and a standard test specimen. Its symmetry gives four copies of the asymmetric unit per particle; a 2015 study reached 2.2 Å with it (Bartesaghi et al., <em>Science</em>).</p>
+    </div>
+    <div>
+      <h3><span>06</span>What this model simplifies</h3>
+      <p>Particles are built from the deposited structure, PDB 5A1A: its Cα trace averaged into one bead per four residues for the images and one per sixteen for the 3D view, where the four chains are shaded separately. Side chains, solvent and the true scattering potential are left out. Exposures are 102 nm crops simulated with a weak-phase CTF (Cs 2.7 mm, 7% amplitude contrast), shot noise and random ice texture; there is no beam-induced motion, astigmatism or energy filter. The column geometry is schematic, and the in-focus plane is drawn far further from the grid than the real micrometre offset.</p>
+    </div>
+  </div>
+</section>
+<p class="foot">Optics: 300 kV (λ = 0.0197 Å), Cs 2.7 mm, B-factor 60 Å². Particle: PDB 5A1A (Bartesaghi et al. 2015), Cα beads. Grid: Cu 300 mesh, R1.2/1.3 holey carbon, ice inelastic mean free path taken as 260 nm.</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------------- hashing & noise ---------------- */
+function hash(a,b,c){
+  let h=Math.imul(a|0,0x27d4eb2d)^Math.imul((b|0)+0x3c6ef372,0x165667b1)^Math.imul((c|0)+0x1b873593,0x9e3779b1);
+  h=Math.imul(h^(h>>>15),0x85ebca6b); h=Math.imul(h^(h>>>13),0xc2b2ae35); h^=h>>>16;
+  return (h>>>0)/4294967296;
+}
+function vnoise(x,y,s){
+  const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+  const a=hash(xi,yi,s),b=hash(xi+1,yi,s),c=hash(xi,yi+1,s),d=hash(xi+1,yi+1,s);
+  return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;
+}
+function gh(x,y,s){return (hash(x,y,s)+hash(x,y,s+1)+hash(x,y,s+2)-1.5)*2;}
+let gSpare=null;
+function gauss(){
+  if(gSpare!==null){const g=gSpare;gSpare=null;return g;}
+  let u=0; while(u===0)u=Math.random(); const v=Math.random(), r=Math.sqrt(-2*Math.log(u));
+  gSpare=r*Math.sin(6.283185307*v); return r*Math.cos(6.283185307*v);
+}
+
+/* ---------------- the grid (units: µm, ice in nm) ---------------- */
+const PITCH=84.7, BAR=24, GRID_R=1500, RIM=110, HP=2.5, HR=0.6, LAM=260, CARB=29;
+const sqCache=new Map();
+function sqInfo(a,b){
+  const key=a*4099+b; let s=sqCache.get(key); if(s) return s;
+  const r=hash(a,b,11), g=((a*0.7+b*0.45)*PITCH)/GRID_R;
+  const n=0.65*vnoise(a/6.5,b/6.5,3)+0.35*vnoise(a/2.2,b/2.2,5);
+  let v=Math.min(1,Math.max(0,0.44+0.26*g+0.75*(n-0.5)));
+  let t=(12+235*Math.pow(v,1.7))*(0.9+0.2*hash(a,b,12));
+  let type=0; if(r<0.035) type=2; else if(r<0.07){type=1;t=0;}
+  s={T:t,type,dens:0.35+hash(a,b,13)}; sqCache.set(key,s); return s;
+}
+let cosA=1;
+// region: 0 blocked, 1 carbon, 2 hole, 3 torn film
+let R=0,T=0,T0=0,I=0,SQ=null;
+function sample(x,y){
+  if(x*x+y*y>(GRID_R-RIM)*(GRID_R-RIM)){R=0;T=T0=0;I=0;SQ=null;return 0;}
+  const a=Math.floor(x/PITCH), b=Math.floor(y/PITCH), u=x-a*PITCH, v=y-b*PITCH, hb=BAR/2;
+  if(u<hb||u>PITCH-hb||v<hb||v>PITCH-hb){R=0;T=T0=0;I=0;SQ=null;return 0;}
+  const sq=sqInfo(a,b); SQ=sq;
+  if(sq.type===2){R=3;T=T0=0;I=1;return 3;}
+  const dx=x-Math.round(x/HP)*HP, dy=y-Math.round(y/HP)*HP, d2=(dx*dx+dy*dy)/(HR*HR);
+  if(d2<1){T0=sq.T*(0.72+0.38*d2); T=T0/cosA; I=Math.exp(-T/LAM); R=2; return 2;}
+  T0=sq.T*1.05; T=T0/cosA; I=Math.exp(-(T+CARB/cosA)/LAM); R=1; return 1;
+}
+const FH=Math.PI*HR*HR/(HP*HP);
+function atlasI(x,y,ca){
+  if(x*x+y*y>(GRID_R-RIM)*(GRID_R-RIM)) return -1;
+  const a=Math.floor(x/PITCH), b=Math.floor(y/PITCH), u=x-a*PITCH, v=y-b*PITCH, hb=BAR/2;
+  if(u<hb||u>PITCH-hb||v<hb||v>PITCH-hb) return -1;
+  const sq=sqInfo(a,b); if(sq.type===2) return 1;
+  const t=sq.T/ca;
+  return FH*Math.exp(-0.91*t/LAM)+(1-FH)*Math.exp(-(1.05*t+CARB/ca)/LAM);
+}
+
+/* ---------------- β-galactosidase from PDB 5A1A (Å, centred, principal axes) ----------------
+   IMG: one bead per 4 Cα (chains A–D, 1022 residues each) for image simulation.
+   VIS: one bead per 16 Cα for the 3D ice view; 4th value is the chain index. */
+const decode=s=>s.split(';').map(t=>t.split(',').map(Number));
+const BLOBS=decode('1,62,6,0;6,60,2,0;6,55,-1,0;8,48,-2,0;5,42,-3,0;3,44,6,0;1,39,14,0;5,34,22,0;3,38,32,0;3,34,39,0;8,31,36,0;9,39,35,0;9,45,29,0;18,50,24,0;21,56,15,0;22,56,3,0;16,59,1,0;13,65,8,0;12,64,14,0;22,64,13,0;25,55,18,0;22,46,17,0;28,48,11,0;30,50,6,0;29,40,2,0;25,34,-5,0;22,41,-8,0;13,42,-9,0;18,50,-6,0;20,52,3,0;16,56,15,0;10,57,26,0;1,53,32,0;-4,51,29,0;2,47,22,0;12,42,17,0;15,44,8,0;9,52,10,0;5,59,15,0;4,51,10,0;11,41,7,0;11,38,13,0;2,47,17,0;-1,54,20,0;4,61,26,0;10,57,18,0;15,51,8,0;16,45,0,0;15,38,-1,0;22,33,1,0;26,39,5,0;20,45,12,0;15,44,20,0;3,45,26,0;-7,41,28,0;-3,33,23,0;1,20,23,0;1,7,24,0;4,5,28,0;-1,15,27,0;-5,26,23,0;-10,38,23,0;-17,35,29,0;-10,30,33,0;1,23,35,0;8,21,41,0;0,19,38,0;-11,24,32,0;-15,25,23,0;-19,22,13,0;-18,26,16,0;-13,29,22,0;-7,20,28,0;1,11,33,0;10,12,30,0;18,14,26,0;12,18,31,0;3,26,32,0;-8,33,34,0;-12,34,40,0;-4,36,34,0;5,28,30,0;8,17,26,0;8,10,15,0;10,4,9,0;12,8,17,0;15,5,18,0;23,13,15,0;26,25,12,0;29,35,15,0;29,40,15,0;24,37,21,0;26,31,24,0;28,26,24,0;30,20,23,0;28,16,20,0;21,22,14,0;18,29,9,0;16,32,19,0;17,28,23,0;18,22,26,0;19,19,21,0;14,25,10,0;15,31,1,0;20,31,-9,0;15,28,-10,0;8,30,-8,0;4,33,-6,0;5,33,1,0;6,31,7,0;6,30,13,0;7,27,18,0;12,21,21,0;12,20,11,0;15,25,2,0;13,24,-6,0;6,24,-3,0;3,22,2,0;1,21,7,0;2,19,13,0;9,17,9,0;15,20,-2,0;15,15,-4,0;9,16,1,0;17,14,2,0;27,14,0,0;30,7,-3,0;25,14,-12,0;21,15,-10,0;25,7,-2,0;20,4,-2,0;13,3,-4,0;14,7,4,0;22,16,6,0;32,19,5,0;40,22,6,0;37,13,6,0;33,7,8,0;28,4,10,0;22,1,9,0;22,9,9,0;28,20,9,0;32,29,12,0;37,40,11,0;46,48,12,0;45,44,15,0;38,38,6,0;37,43,1,0;33,41,-4,0;36,33,0,0;34,28,7,0;36,28,15,0;38,29,19,0;40,20,15,0;36,14,16,0;33,10,18,0;31,3,22,0;39,-8,22,0;38,-7,26,0;28,1,24,0;20,6,26,0;25,6,34,0;35,5,33,0;48,1,29,0;56,3,26,0;51,0,33,0;38,1,36,0;27,0,32,0;24,-1,25,0;34,-7,30,0;46,-8,33,0;57,-8,29,0;60,-3,22,0;48,0,24,0;38,6,29,0;32,13,36,0;28,20,32,0;35,16,34,0;36,10,26,0;44,1,20,0;54,-7,20,0;66,-7,17,0;76,-3,15,0;84,3,15,0;86,10,6,0;86,17,-5,0;82,16,1,0;84,14,13,0;80,16,9,0;77,18,-4,0;73,17,-3,0;76,20,7,0;80,22,17,0;73,24,10,0;68,21,2,0;59,17,-3,0;49,23,0,0;42,23,-2,0;39,27,-7,0;41,32,-13,0;40,22,-12,0;46,21,-10,0;51,21,-13,0;56,22,-10,0;65,20,-11,0;74,12,-10,0;81,6,-2,0;82,0,7,0;78,6,1,0;69,11,-8,0;61,18,-16,0;60,15,-17,0;64,10,-8,0;72,7,1,0;78,6,12,0;74,8,11,0;66,6,1,0;58,8,-9,0;51,11,-14,0;52,14,-4,0;60,15,2,0;67,24,9,0;65,26,19,0;59,17,21,0;52,10,18,0;48,16,16,0;44,11,7,0;43,10,15,0;51,8,21,0;55,18,23,0;54,24,18,0;48,27,12,0;46,30,6,0;50,21,9,0;53,10,13,0;61,11,17,0;67,18,19,0;64,9,14,0;57,10,10,0;57,23,11,0;57,27,4,0;53,31,1,0;48,35,4,0;52,37,9,0;63,32,10,0;61,22,9,0;57,11,4,0;47,13,2,0;36,16,1,0;36,20,-5,0;40,11,-3,0;46,7,-2,0;53,4,-7,0;61,4,1,0;68,9,11,0;72,14,19,0;-1,-62,6,1;-6,-60,2,1;-6,-55,-1,1;-8,-48,-2,1;-5,-42,-3,1;-3,-44,6,1;-1,-39,14,1;-5,-34,22,1;-3,-38,32,1;-3,-34,39,1;-8,-31,36,1;-9,-39,35,1;-9,-45,29,1;-18,-50,24,1;-21,-56,15,1;-22,-56,3,1;-16,-59,1,1;-13,-65,8,1;-12,-64,14,1;-22,-64,13,1;-25,-55,18,1;-22,-46,17,1;-28,-48,11,1;-30,-50,6,1;-29,-40,2,1;-25,-34,-5,1;-22,-41,-8,1;-13,-42,-9,1;-18,-50,-6,1;-20,-52,3,1;-16,-56,15,1;-10,-57,26,1;-1,-53,32,1;4,-51,29,1;-2,-47,22,1;-12,-42,17,1;-15,-44,8,1;-9,-52,10,1;-5,-59,15,1;-4,-51,10,1;-11,-41,7,1;-11,-38,13,1;-2,-47,17,1;1,-54,20,1;-4,-61,26,1;-10,-57,18,1;-15,-51,8,1;-16,-45,0,1;-15,-38,-1,1;-22,-33,1,1;-26,-39,5,1;-20,-45,12,1;-15,-44,20,1;-3,-45,26,1;7,-41,28,1;3,-33,23,1;-1,-20,23,1;-1,-7,24,1;-4,-5,28,1;1,-15,27,1;5,-26,23,1;10,-38,23,1;17,-35,29,1;10,-30,33,1;-1,-23,35,1;-8,-21,41,1;0,-19,38,1;11,-24,32,1;15,-25,23,1;19,-22,13,1;18,-26,16,1;13,-29,22,1;7,-20,28,1;-1,-11,33,1;-10,-12,30,1;-18,-14,26,1;-12,-18,31,1;-3,-26,32,1;8,-33,34,1;12,-34,40,1;4,-36,34,1;-5,-28,30,1;-8,-17,26,1;-8,-10,15,1;-10,-4,9,1;-12,-8,17,1;-15,-5,18,1;-23,-13,15,1;-26,-25,12,1;-29,-35,15,1;-29,-40,15,1;-24,-37,21,1;-26,-31,24,1;-28,-26,24,1;-30,-20,23,1;-28,-16,20,1;-21,-22,14,1;-18,-29,9,1;-16,-32,19,1;-17,-28,23,1;-18,-22,26,1;-19,-19,21,1;-14,-25,10,1;-15,-31,1,1;-20,-31,-9,1;-15,-28,-10,1;-8,-30,-8,1;-4,-33,-6,1;-5,-33,1,1;-6,-31,7,1;-6,-30,13,1;-7,-27,18,1;-12,-21,21,1;-12,-20,11,1;-15,-25,2,1;-13,-24,-6,1;-6,-24,-3,1;-3,-22,2,1;-1,-21,7,1;-2,-19,13,1;-9,-17,9,1;-15,-20,-2,1;-15,-15,-4,1;-9,-16,1,1;-17,-14,2,1;-27,-14,0,1;-30,-7,-3,1;-25,-14,-12,1;-21,-15,-10,1;-25,-7,-2,1;-20,-4,-2,1;-13,-3,-4,1;-14,-7,4,1;-22,-16,6,1;-32,-19,5,1;-40,-22,6,1;-37,-13,6,1;-33,-7,8,1;-28,-4,10,1;-22,-1,9,1;-22,-9,9,1;-28,-20,9,1;-32,-29,12,1;-37,-40,11,1;-46,-48,12,1;-45,-44,15,1;-38,-38,6,1;-37,-43,1,1;-33,-41,-4,1;-36,-33,0,1;-34,-28,7,1;-36,-28,15,1;-38,-29,19,1;-40,-20,15,1;-36,-14,16,1;-33,-10,18,1;-31,-3,22,1;-39,8,22,1;-38,7,26,1;-28,-1,24,1;-20,-6,26,1;-25,-6,34,1;-35,-5,33,1;-48,-1,29,1;-56,-3,26,1;-51,0,33,1;-38,-1,36,1;-27,0,32,1;-24,1,25,1;-34,7,30,1;-46,8,33,1;-57,8,29,1;-60,3,22,1;-48,0,24,1;-38,-6,29,1;-32,-13,36,1;-28,-20,32,1;-35,-16,34,1;-36,-10,26,1;-44,-1,20,1;-54,7,20,1;-66,7,17,1;-76,3,15,1;-84,-3,15,1;-86,-10,6,1;-86,-17,-5,1;-82,-16,1,1;-84,-14,13,1;-80,-16,9,1;-77,-18,-4,1;-73,-17,-3,1;-76,-20,7,1;-80,-22,17,1;-73,-24,10,1;-68,-21,2,1;-59,-17,-3,1;-49,-23,0,1;-42,-23,-2,1;-39,-27,-7,1;-41,-32,-13,1;-40,-22,-12,1;-46,-21,-10,1;-51,-21,-13,1;-56,-22,-10,1;-65,-20,-11,1;-74,-12,-10,1;-81,-6,-2,1;-82,0,7,1;-78,-6,1,1;-69,-11,-8,1;-61,-18,-16,1;-60,-15,-17,1;-64,-10,-8,1;-72,-7,1,1;-78,-6,12,1;-74,-8,11,1;-66,-6,1,1;-58,-8,-9,1;-51,-11,-14,1;-52,-14,-4,1;-60,-15,2,1;-67,-24,9,1;-65,-26,19,1;-59,-17,21,1;-52,-10,18,1;-48,-16,16,1;-44,-11,7,1;-43,-10,15,1;-51,-8,21,1;-55,-18,23,1;-54,-24,18,1;-48,-27,12,1;-46,-30,6,1;-50,-21,9,1;-53,-10,13,1;-61,-11,17,1;-67,-18,19,1;-64,-9,14,1;-57,-10,10,1;-57,-23,11,1;-57,-27,4,1;-53,-31,1,1;-48,-35,4,1;-52,-37,9,1;-63,-32,10,1;-61,-22,9,1;-57,-11,4,1;-47,-13,2,1;-36,-16,1,1;-36,-20,-5,1;-40,-11,-3,1;-46,-7,-2,1;-53,-4,-7,1;-61,-4,1,1;-68,-9,11,1;-72,-14,19,1;1,-62,-6,2;6,-60,-2,2;6,-55,1,2;8,-48,2,2;5,-42,3,2;3,-44,-6,2;1,-39,-14,2;5,-34,-22,2;3,-38,-32,2;3,-34,-39,2;8,-31,-36,2;9,-39,-35,2;9,-45,-29,2;18,-50,-24,2;21,-56,-15,2;22,-56,-3,2;16,-59,-1,2;13,-65,-8,2;12,-64,-14,2;22,-64,-13,2;25,-55,-18,2;22,-46,-17,2;28,-48,-11,2;30,-50,-6,2;29,-40,-2,2;25,-34,5,2;22,-41,8,2;13,-42,9,2;18,-50,6,2;20,-52,-3,2;16,-56,-15,2;10,-57,-26,2;1,-53,-32,2;-4,-51,-29,2;2,-47,-22,2;12,-42,-17,2;15,-44,-8,2;9,-52,-10,2;5,-59,-15,2;4,-51,-10,2;11,-41,-7,2;11,-38,-13,2;2,-47,-17,2;-1,-54,-20,2;4,-61,-26,2;10,-57,-18,2;15,-51,-8,2;16,-45,0,2;15,-38,1,2;22,-33,-1,2;26,-39,-5,2;20,-45,-12,2;15,-44,-20,2;3,-45,-26,2;-7,-41,-28,2;-3,-33,-23,2;1,-20,-23,2;1,-7,-24,2;4,-5,-28,2;-1,-15,-27,2;-5,-26,-23,2;-10,-38,-23,2;-17,-35,-29,2;-10,-30,-33,2;1,-23,-35,2;8,-21,-41,2;0,-19,-38,2;-11,-24,-32,2;-15,-25,-23,2;-19,-22,-13,2;-18,-26,-16,2;-13,-29,-22,2;-7,-20,-28,2;1,-11,-33,2;10,-12,-30,2;18,-14,-26,2;12,-18,-31,2;3,-26,-32,2;-8,-33,-34,2;-12,-34,-40,2;-4,-36,-34,2;5,-28,-30,2;8,-17,-26,2;8,-10,-15,2;10,-4,-9,2;12,-8,-17,2;15,-5,-18,2;23,-13,-15,2;26,-25,-12,2;29,-35,-15,2;29,-40,-15,2;24,-37,-21,2;26,-31,-24,2;28,-26,-24,2;30,-20,-23,2;28,-16,-20,2;21,-22,-14,2;18,-29,-9,2;16,-32,-19,2;17,-28,-23,2;18,-22,-26,2;19,-19,-21,2;14,-25,-10,2;15,-31,-1,2;20,-31,9,2;15,-28,10,2;8,-30,8,2;4,-33,6,2;5,-33,-1,2;6,-31,-7,2;6,-30,-13,2;7,-27,-18,2;12,-21,-21,2;12,-20,-11,2;15,-25,-2,2;13,-24,6,2;6,-24,3,2;3,-22,-2,2;1,-21,-7,2;2,-19,-13,2;9,-17,-9,2;15,-20,2,2;15,-15,4,2;9,-16,-1,2;17,-14,-2,2;27,-14,0,2;30,-7,3,2;25,-14,12,2;21,-15,10,2;25,-7,2,2;20,-4,2,2;13,-3,4,2;14,-7,-4,2;22,-16,-6,2;32,-19,-5,2;40,-22,-6,2;37,-13,-6,2;33,-7,-8,2;28,-4,-10,2;22,-1,-9,2;22,-9,-9,2;28,-20,-9,2;32,-29,-12,2;37,-40,-11,2;46,-48,-12,2;45,-44,-15,2;38,-38,-6,2;37,-43,-1,2;33,-41,4,2;36,-33,0,2;34,-28,-7,2;36,-28,-15,2;38,-29,-19,2;40,-20,-15,2;36,-14,-16,2;33,-10,-18,2;31,-3,-22,2;39,8,-22,2;38,7,-26,2;28,-1,-24,2;20,-6,-26,2;25,-6,-34,2;35,-5,-33,2;48,-1,-29,2;56,-3,-26,2;51,0,-33,2;38,-1,-36,2;27,0,-32,2;24,1,-25,2;34,7,-30,2;46,8,-33,2;57,8,-29,2;60,3,-22,2;48,0,-24,2;38,-6,-29,2;32,-13,-36,2;28,-20,-32,2;35,-16,-34,2;36,-10,-26,2;44,-1,-20,2;54,7,-20,2;66,7,-17,2;76,3,-15,2;84,-3,-15,2;86,-10,-6,2;86,-17,5,2;82,-16,-1,2;84,-14,-13,2;80,-16,-9,2;77,-18,4,2;73,-17,3,2;76,-20,-7,2;80,-22,-17,2;73,-24,-10,2;68,-21,-2,2;59,-17,3,2;49,-23,0,2;42,-23,2,2;39,-27,7,2;41,-32,13,2;40,-22,12,2;46,-21,10,2;51,-21,13,2;56,-22,10,2;65,-20,11,2;74,-12,10,2;81,-6,2,2;82,0,-7,2;78,-6,-1,2;69,-11,8,2;61,-18,16,2;60,-15,17,2;64,-10,8,2;72,-7,-1,2;78,-6,-12,2;74,-8,-11,2;66,-6,-1,2;58,-8,9,2;51,-11,14,2;52,-14,4,2;60,-15,-2,2;67,-24,-9,2;65,-26,-19,2;59,-17,-21,2;52,-10,-18,2;48,-16,-16,2;44,-11,-7,2;43,-10,-15,2;51,-8,-21,2;55,-18,-23,2;54,-24,-18,2;48,-27,-12,2;46,-30,-6,2;50,-21,-9,2;53,-10,-13,2;61,-11,-17,2;67,-18,-19,2;64,-9,-14,2;57,-10,-10,2;57,-23,-11,2;57,-27,-4,2;53,-31,-1,2;48,-35,-4,2;52,-37,-9,2;63,-32,-10,2;61,-22,-9,2;57,-11,-4,2;47,-13,-2,2;36,-16,-1,2;36,-20,5,2;40,-11,3,2;46,-7,2,2;53,-4,7,2;61,-4,-1,2;68,-9,-11,2;72,-14,-19,2;-1,62,-6,3;-6,60,-2,3;-6,55,1,3;-8,48,2,3;-5,42,3,3;-3,44,-6,3;-1,39,-14,3;-5,34,-22,3;-3,38,-32,3;-3,34,-39,3;-8,31,-36,3;-9,39,-35,3;-9,45,-29,3;-18,50,-24,3;-21,56,-15,3;-22,56,-3,3;-16,59,-1,3;-13,65,-8,3;-12,64,-14,3;-22,64,-13,3;-25,55,-18,3;-22,46,-17,3;-28,48,-11,3;-30,50,-6,3;-29,40,-2,3;-25,34,5,3;-22,41,8,3;-13,42,9,3;-18,50,6,3;-20,52,-3,3;-16,56,-15,3;-10,57,-26,3;-1,53,-32,3;4,51,-29,3;-2,47,-22,3;-12,42,-17,3;-15,44,-8,3;-9,52,-10,3;-5,59,-15,3;-4,51,-10,3;-11,41,-7,3;-11,38,-13,3;-2,47,-17,3;1,54,-20,3;-4,61,-26,3;-10,57,-18,3;-15,51,-8,3;-16,45,0,3;-15,38,1,3;-22,33,-1,3;-26,39,-5,3;-20,45,-12,3;-15,44,-20,3;-3,45,-26,3;7,41,-28,3;3,33,-23,3;-1,20,-23,3;-1,7,-24,3;-4,5,-28,3;1,15,-27,3;5,26,-23,3;10,38,-23,3;17,35,-29,3;10,30,-33,3;-1,23,-35,3;-8,21,-41,3;0,19,-38,3;11,24,-32,3;15,25,-23,3;19,22,-13,3;18,26,-16,3;13,29,-22,3;7,20,-28,3;-1,11,-33,3;-10,12,-30,3;-18,14,-26,3;-12,18,-31,3;-3,26,-32,3;8,33,-34,3;12,34,-40,3;4,36,-34,3;-5,28,-30,3;-8,17,-26,3;-8,10,-15,3;-10,4,-9,3;-12,8,-17,3;-15,5,-18,3;-23,13,-15,3;-26,25,-12,3;-29,35,-15,3;-29,40,-15,3;-24,37,-21,3;-26,31,-24,3;-28,26,-24,3;-30,20,-23,3;-28,16,-20,3;-21,22,-14,3;-18,29,-9,3;-16,32,-19,3;-17,28,-23,3;-18,22,-26,3;-19,19,-21,3;-14,25,-10,3;-15,31,-1,3;-20,31,9,3;-15,28,10,3;-8,30,8,3;-4,33,6,3;-5,33,-1,3;-6,31,-7,3;-6,30,-13,3;-7,27,-18,3;-12,21,-21,3;-12,20,-11,3;-15,25,-2,3;-13,24,6,3;-6,24,3,3;-3,22,-2,3;-1,21,-7,3;-2,19,-13,3;-9,17,-9,3;-15,20,2,3;-15,15,4,3;-9,16,-1,3;-17,14,-2,3;-27,14,0,3;-30,7,3,3;-25,14,12,3;-21,15,10,3;-25,7,2,3;-20,4,2,3;-13,3,4,3;-14,7,-4,3;-22,16,-6,3;-32,19,-5,3;-40,22,-6,3;-37,13,-6,3;-33,7,-8,3;-28,4,-10,3;-22,1,-9,3;-22,9,-9,3;-28,20,-9,3;-32,29,-12,3;-37,40,-11,3;-46,48,-12,3;-45,44,-15,3;-38,38,-6,3;-37,43,-1,3;-33,41,4,3;-36,33,0,3;-34,28,-7,3;-36,28,-15,3;-38,29,-19,3;-40,20,-15,3;-36,14,-16,3;-33,10,-18,3;-31,3,-22,3;-39,-8,-22,3;-38,-7,-26,3;-28,1,-24,3;-20,6,-26,3;-25,6,-34,3;-35,5,-33,3;-48,1,-29,3;-56,3,-26,3;-51,0,-33,3;-38,1,-36,3;-27,0,-32,3;-24,-1,-25,3;-34,-7,-30,3;-46,-8,-33,3;-57,-8,-29,3;-60,-3,-22,3;-48,0,-24,3;-38,6,-29,3;-32,13,-36,3;-28,20,-32,3;-35,16,-34,3;-36,10,-26,3;-44,1,-20,3;-54,-7,-20,3;-66,-7,-17,3;-76,-3,-15,3;-84,3,-15,3;-86,10,-6,3;-86,17,5,3;-82,16,-1,3;-84,14,-13,3;-80,16,-9,3;-77,18,4,3;-73,17,3,3;-76,20,-7,3;-80,22,-17,3;-73,24,-10,3;-68,21,-2,3;-59,17,3,3;-49,23,0,3;-42,23,2,3;-39,27,7,3;-41,32,13,3;-40,22,12,3;-46,21,10,3;-51,21,13,3;-56,22,10,3;-65,20,11,3;-74,12,10,3;-81,6,2,3;-82,0,-7,3;-78,6,-1,3;-69,11,8,3;-61,18,16,3;-60,15,17,3;-64,10,8,3;-72,7,-1,3;-78,6,-12,3;-74,8,-11,3;-66,6,-1,3;-58,8,9,3;-51,11,14,3;-52,14,4,3;-60,15,-2,3;-67,24,-9,3;-65,26,-19,3;-59,17,-21,3;-52,10,-18,3;-48,16,-16,3;-44,11,-7,3;-43,10,-15,3;-51,8,-21,3;-55,18,-23,3;-54,24,-18,3;-48,27,-12,3;-46,30,-6,3;-50,21,-9,3;-53,10,-13,3;-61,11,-17,3;-67,18,-19,3;-64,9,-14,3;-57,10,-10,3;-57,23,-11,3;-57,27,-4,3;-53,31,-1,3;-48,35,-4,3;-52,37,-9,3;-63,32,-10,3;-61,22,-9,3;-57,11,-4,3;-47,13,-2,3;-36,16,-1,3;-36,20,5,3;-40,11,3,3;-46,7,2,3;-53,4,7,3;-61,4,-1,3;-68,9,-11,3;-72,14,-19,3');
+const VIS=decode('5,56,1,0;3,40,10,0;6,36,35,0;17,52,18,0;16,63,9,0;26,50,13,0;23,39,-5,0;16,54,10,0;3,48,25,0;8,51,11,0;6,45,15,0;11,53,13,0;21,39,4,0;2,41,24,0;1,12,25,0;-11,32,27,0;-1,22,36,0;-16,25,19,0;6,14,29,0;-1,28,34,0;4,23,26,0;15,8,15,0;27,34,16,0;28,23,23,0;18,28,17,0;17,24,15,0;12,31,-8,0;6,30,10,0;13,23,7,0;3,21,5,0;12,17,1,0;25,12,-3,0;20,7,-4,0;27,16,5,0;30,6,8,0;30,25,10,0;42,43,9,0;35,32,4,0;37,18,17,0;34,-3,23,0;32,4,30,0;43,1,32,0;40,-6,29,0;44,4,28,0;36,12,28,0;70,-4,17,0;84,14,4,0;77,18,2,0;70,21,7,0;43,26,-6,0;48,22,-11,0;76,10,-4,0;67,13,-10,0;72,8,4,0;57,10,-7,0;63,20,13,0;47,12,14,0;52,19,19,0;52,18,11,0;61,15,13,0;52,32,4,0;57,20,6,0;39,13,-2,0;62,7,4,0;-5,-56,1,1;-3,-40,10,1;-6,-36,35,1;-17,-52,18,1;-16,-63,9,1;-26,-50,13,1;-23,-39,-5,1;-16,-54,10,1;-3,-48,25,1;-8,-51,11,1;-6,-45,15,1;-11,-53,13,1;-21,-39,4,1;-2,-41,24,1;-1,-12,25,1;11,-32,27,1;1,-22,36,1;16,-25,19,1;-6,-14,29,1;1,-28,34,1;-4,-23,26,1;-15,-8,15,1;-27,-34,16,1;-28,-23,23,1;-18,-28,17,1;-17,-24,15,1;-12,-31,-8,1;-6,-30,10,1;-13,-23,7,1;-3,-21,5,1;-12,-17,1,1;-25,-12,-3,1;-20,-7,-4,1;-27,-16,5,1;-30,-6,8,1;-30,-25,10,1;-42,-43,9,1;-35,-32,4,1;-37,-18,17,1;-34,3,23,1;-32,-4,30,1;-43,-1,32,1;-40,6,29,1;-44,-4,28,1;-36,-12,28,1;-70,4,17,1;-84,-14,4,1;-77,-18,2,1;-70,-21,7,1;-43,-26,-6,1;-48,-22,-11,1;-76,-10,-4,1;-67,-13,-10,1;-72,-8,4,1;-57,-10,-7,1;-63,-20,13,1;-47,-12,14,1;-52,-19,19,1;-52,-18,11,1;-61,-15,13,1;-52,-32,4,1;-57,-20,6,1;-39,-13,-2,1;-62,-7,4,1;5,-56,-1,2;3,-40,-10,2;6,-36,-35,2;17,-52,-18,2;16,-63,-9,2;26,-50,-13,2;23,-39,5,2;16,-54,-10,2;3,-48,-25,2;8,-51,-11,2;6,-45,-15,2;11,-53,-13,2;21,-39,-4,2;2,-41,-24,2;1,-12,-25,2;-11,-32,-27,2;-1,-22,-36,2;-16,-25,-19,2;6,-14,-29,2;-1,-28,-34,2;4,-23,-26,2;15,-8,-15,2;27,-34,-16,2;28,-23,-23,2;18,-28,-17,2;17,-24,-15,2;12,-31,8,2;6,-30,-10,2;13,-23,-7,2;3,-21,-5,2;12,-17,-1,2;25,-12,3,2;20,-7,4,2;27,-16,-5,2;30,-6,-8,2;30,-25,-10,2;42,-43,-9,2;35,-32,-4,2;37,-18,-17,2;34,3,-23,2;32,-4,-30,2;43,-1,-32,2;40,6,-29,2;44,-4,-28,2;36,-12,-28,2;70,4,-17,2;84,-14,-4,2;77,-18,-2,2;70,-21,-7,2;43,-26,6,2;48,-22,11,2;76,-10,4,2;67,-13,10,2;72,-8,-4,2;57,-10,7,2;63,-20,-13,2;47,-12,-14,2;52,-19,-19,2;52,-18,-11,2;61,-15,-13,2;52,-32,-4,2;57,-20,-6,2;39,-13,2,2;62,-7,-4,2;-5,56,-1,3;-3,40,-10,3;-6,36,-35,3;-17,52,-18,3;-16,63,-9,3;-26,50,-13,3;-23,39,5,3;-16,54,-10,3;-3,48,-25,3;-8,51,-11,3;-6,45,-15,3;-11,53,-13,3;-21,39,-4,3;-2,41,-24,3;-1,12,-25,3;11,32,-27,3;1,22,-36,3;16,25,-19,3;-6,14,-29,3;1,28,-34,3;-4,23,-26,3;-15,8,-15,3;-27,34,-16,3;-28,23,-23,3;-18,28,-17,3;-17,24,-15,3;-12,31,8,3;-6,30,-10,3;-13,23,-7,3;-3,21,-5,3;-12,17,-1,3;-25,12,3,3;-20,7,4,3;-27,16,-5,3;-30,6,-8,3;-30,25,-10,3;-42,43,-9,3;-35,32,-4,3;-37,18,-17,3;-34,-3,-23,3;-32,4,-30,3;-43,1,-32,3;-40,-6,-29,3;-44,4,-28,3;-36,12,-28,3;-70,-4,-17,3;-84,14,-4,3;-77,18,-2,3;-70,21,-7,3;-43,26,6,3;-48,22,11,3;-76,10,4,3;-67,13,10,3;-72,8,-4,3;-57,10,7,3;-63,20,-13,3;-47,12,-14,3;-52,19,-19,3;-52,18,-11,3;-61,15,-13,3;-52,32,-4,3;-57,20,-6,3;-39,13,2,3;-62,7,-4,3');
+const CELL=320;
+function particlesIn(cx,cy,hw,hh){
+  const out=[], i0=Math.floor((cx-hw)/CELL), i1=Math.floor((cx+hw)/CELL), j0=Math.floor((cy-hh)/CELL), j1=Math.floor((cy+hh)/CELL);
+  for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){
+    const px=(i+0.25+0.5*hash(i,j,102))*CELL, py=(j+0.25+0.5*hash(i,j,103))*CELL;
+    if(sample(px*1e-4,py*1e-4)!==2||SQ.type!==0||T0<22) continue;
+    if(hash(i,j,101)>Math.min(0.92,0.62*SQ.dens)) continue;
+    const u1=hash(i,j,104),u2=hash(i,j,105)*6.2831853,u3=hash(i,j,106)*6.2831853, s1=Math.sqrt(1-u1),s2=Math.sqrt(u1);
+    const qx=s1*Math.sin(u2),qy=s1*Math.cos(u2),qz=s2*Math.sin(u3),qw=s2*Math.cos(u3);
+    const m=[1-2*(qy*qy+qz*qz),2*(qx*qy-qz*qw),2*(qx*qz+qy*qw),2*(qx*qy+qz*qw),1-2*(qx*qx+qz*qz),2*(qy*qz-qx*qw),2*(qx*qz-qy*qw),2*(qy*qz+qx*qw),1-2*(qx*qx+qy*qy)];
+    const h7=hash(i,j,107),h8=hash(i,j,108);
+    const zf=h7<0.55?0.88+0.1*h8:h7<0.8?0.02+0.1*h8:0.25+0.5*h8; // most sit at the air–water interfaces
+    out.push({x:px,y:py,m,zf,t:T0});
+  }
+  return out;
+}
+
+/* ---------------- FFT ---------------- */
+const N=256, H=N/2;
+const rev=new Uint16Array(N); for(let i=0;i<N;i++){let r=0,x=i;for(let b=0;b<8;b++){r=(r<<1)|(x&1);x>>=1;}rev[i]=r;}
+const cT=new Float64Array(H), sT=new Float64Array(H); for(let k=0;k<H;k++){cT[k]=Math.cos(2*Math.PI*k/N);sT[k]=Math.sin(2*Math.PI*k/N);}
+const tr=new Float64Array(N), ti=new Float64Array(N);
+function fft1(re,im,off,stride,inv){
+  for(let i=0;i<N;i++){const j=off+i*stride;tr[rev[i]]=re[j];ti[rev[i]]=im[j];}
+  for(let size=2;size<=N;size<<=1){const half=size>>1,step=N/size;
+    for(let i=0;i<N;i+=size) for(let j=0;j<half;j++){
+      const k=j*step,wr=cT[k],wi=inv?sT[k]:-sT[k],a=i+j,b=a+half;
+      const xr=tr[b]*wr-ti[b]*wi, xi=tr[b]*wi+ti[b]*wr;
+      tr[b]=tr[a]-xr; ti[b]=ti[a]-xi; tr[a]+=xr; ti[a]+=xi;
+    }}
+  const s=inv?1/N:1; for(let i=0;i<N;i++){const j=off+i*stride;re[j]=tr[i]*s;im[j]=ti[i]*s;}
+}
+function fft2(re,im,inv){for(let y=0;y<N;y++)fft1(re,im,y*N,1,inv);for(let x=0;x<N;x++)fft1(re,im,x,N,inv);}
+
+/* ---------------- state ---------------- */
+const LEV=[
+  {name:'Atlas',field:3400,bar:500,barLabel:'500 µm',lo:0.25,hi:0.98,pix:'13.3 µm',fov:'3.4 mm'},
+  {name:'Square',field:110,bar:20,barLabel:'20 µm',lo:0.42,hi:0.98,pix:'430 nm',fov:'110 µm'},
+  {name:'Hole',field:4,bar:1,barLabel:'1 µm',lo:0.5,hi:0.98,pix:'15.6 nm',fov:'4.0 µm'},
+  {name:'Exposure',field:0.1024,bar:0.02,barLabel:'20 nm',pix:'4.0 Å',fov:'102 nm'}
+];
+const st={sx:0,sy:0,level:3,df:1.6,dose:40,tilt:0,pick:false,lp:true,exploded:true,gridView:false};
+let dirtyImg=true, dirtySlab=true;
+function invalidate(){dirtyImg=true;dirtySlab=true;}
+
+/* ---------------- detector rendering ---------------- */
+const scr=$('#screen'), sctx=scr.getContext('2d'), imgData=sctx.createImageData(N,N);
+const psC=$('#ps'), pctx=psC.getContext('2d'), psData=pctx.createImageData(128,128);
+const img=new Float32Array(N*N), RE=new Float64Array(N*N), IM=new Float64Array(N*N), TRN=new Float32Array(N*N), REG=new Uint8Array(N*N), K2=new Float64Array(N*N);
+const P=4; // Å per pixel at exposure magnification
+for(let y=0;y<N;y++){const fy=(y<H?y:y-N)/(N*P);for(let x=0;x<N;x++){const fx=(x<H?x:x-N)/(N*P);K2[y*N+x]=fx*fx+fy*fy;}}
+const LAMBDA=0.019687, CS=2.7e7, AMP=0.07, BFAC=60;
+function ctfW(k2,dfA){
+  const chi=Math.PI*LAMBDA*dfA*k2-0.5*Math.PI*CS*LAMBDA*LAMBDA*LAMBDA*k2*k2;
+  return (Math.sqrt(1-AMP*AMP)*Math.sin(chi)+AMP*Math.cos(chi))*Math.exp(-BFAC*k2/4);
+}
+let exParticles=[], exCenter={x:0,y:0}, visibleCount=0;
+function computeExField(){
+  const py_=P/cosA, ox=Math.round(st.sx*1e4/P), oy=Math.round(st.sy*1e4/py_);
+  exCenter={x:ox*P,y:oy*py_,ox,oy,py:py_};
+  exParticles=particlesIn(exCenter.x,exCenter.y,H*P+260,H*py_+260);
+}
+
+function blit(lo,hi){
+  const d=imgData.data, sc=255/(hi-lo);
+  for(let i=0,j=0;i<N*N;i++,j+=4){let v=(img[i]-lo)*sc; v=v<0?0:v>255?255:v; d[j]=d[j+1]=d[j+2]=v; d[j+3]=255;}
+  sctx.putImageData(imgData,0,0);
+}
+
+function renderExposure(){
+  computeExField();
+  const {x:cx,y:cy,ox,oy,py:py_}=exCenter;
+  for(let iy=0;iy<N;iy++){const wy=cy+(iy-H)*py_, hy=oy+iy-H;
+    for(let ix=0;ix<N;ix++){const wx=cx+(ix-H)*P, hx=ox+ix-H, i=iy*N+ix;
+      const reg=sample(wx*1e-4,wy*1e-4); REG[i]=reg; TRN[i]=I; let ph=0;
+      if(reg===2) ph=0.024*Math.sqrt(Math.max(T,1)/40)*gh(hx,hy,31);
+      else if(reg===1) ph=0.024*Math.sqrt(T/40)*gh(hx,hy,31)+0.07*gh(hx,hy,41);
+      RE[i]=ph; IM[i]=0;
+    }}
+  const sig=5/P, amp=0.0057, rad=Math.ceil(3*sig), inv2=1/(2*sig*sig), ca=Math.cos(st.tilt), sa=Math.sin(st.tilt);
+  visibleCount=0;
+  for(const pt of exParticles){
+    const m=pt.m, pcx=(pt.x-cx)/P+H, pcy=(pt.y-cy)/py_+H; pt.ix=pcx; pt.iy=pcy;
+    if(pcx>-20&&pcx<N+20&&pcy>-20&&pcy<N+20) visibleCount++; else continue;
+    for(const b of BLOBS){
+      const X=m[0]*b[0]+m[1]*b[1]+m[2]*b[2], Y0=m[3]*b[0]+m[4]*b[1]+m[5]*b[2], Z0=m[6]*b[0]+m[7]*b[1]+m[8]*b[2];
+      const bx=pcx+X/P, by=pcy+(ca*Y0-sa*Z0)/P;
+      const x0=Math.max(0,Math.floor(bx-rad)), x1=Math.min(N-1,Math.ceil(bx+rad)), y0=Math.max(0,Math.floor(by-rad)), y1=Math.min(N-1,Math.ceil(by+rad));
+      for(let y=y0;y<=y1;y++){const dy=y-by; for(let x=x0;x<=x1;x++){const dx=x-bx; RE[y*N+x]+=amp*Math.exp(-(dx*dx+dy*dy)*inv2);}}
+    }
+  }
+  visibleCount=exParticles.filter(p=>p.ix>=0&&p.ix<N&&p.iy>=0&&p.iy<N).length;
+  fft2(RE,IM,false);
+  const dfA=st.df*1e4;
+  for(let i=0;i<N*N;i++){const w=ctfW(K2[i],dfA); RE[i]*=w; IM[i]*=w;}
+  fft2(RE,IM,true);
+  const dpp=st.dose*P*P; let s=0,n=0;
+  for(let i=0;i<N*N;i++){
+    if(REG[i]===0){img[i]=0;continue;}
+    const m=Math.max(0,TRN[i]*(1-2*RE[i])*dpp); const c=m+Math.sqrt(m)*gauss(); img[i]=c; s+=c; n++;
+  }
+  const mean=n?s/n:0;
+  for(let i=0;i<N*N;i++){RE[i]=REG[i]===0?0:img[i]-mean; IM[i]=0;}
+  fft2(RE,IM,false);
+  drawPS(n>0);
+  if(st.lp){const kc=1/22, f=1/(2*kc*kc); for(let i=0;i<N*N;i++){const g=Math.exp(-K2[i]*f);RE[i]*=g;IM[i]*=g;} fft2(RE,IM,true); for(let i=0;i<N*N;i++) img[i]=RE[i];}
+  else for(let i=0;i<N*N;i++) img[i]=img[i]-mean;
+  if(!n){img.fill(0);blit(0,1);return;}
+  let a=0,a2=0; for(let i=0;i<N*N;i++){if(REG[i]){a+=img[i];a2+=img[i]*img[i];}}
+  const mu=a/n, sd=Math.sqrt(Math.max(1e-12,a2/n-mu*mu));
+  for(let i=0;i<N*N;i++) if(!REG[i]) img[i]=-1e9;
+  blit(mu-3*sd,mu+3*sd);
+}
+
+function drawPS(ok){
+  const d=psData.data;
+  if(!ok||st.level!==3){for(let j=0;j<d.length;j+=4){d[j]=d[j+1]=d[j+2]=8;d[j+3]=255;} pctx.putImageData(psData,0,0); pctx.fillStyle='#8f99a8'; pctx.font='9px "IBM Plex Mono", monospace'; pctx.textAlign='center'; pctx.fillText(ok?'exposure mag':'no signal',64,62); pctx.fillText(ok?'only':'',64,74); return;}
+  const L=new Float32Array(128*128); let s=0,s2=0,n=0;
+  for(let by=0;by<128;by++) for(let bx=0;bx<128;bx++){
+    let v=0;
+    for(let dy=0;dy<2;dy++) for(let dx=0;dx<2;dx++){
+      let u=(2*bx+dx+H)&255, w=(2*by+dy+H)&255; if(u===0)u=1; if(w===0)w=1;
+      const i=w*N+u; v+=RE[i]*RE[i]+IM[i]*IM[i];
+    }
+    const l=Math.log(v+1e-6); L[by*128+bx]=l;
+    const r2=(bx-64)*(bx-64)+(by-64)*(by-64); if(r2>36){s+=l;s2+=l*l;n++;}
+  }
+  const mu=s/n, sd=Math.sqrt(Math.max(1e-9,s2/n-mu*mu)), lo=mu-1.6*sd, sc=255/(4.2*sd);
+  for(let i=0,j=0;i<128*128;i++,j+=4){let v=(L[i]-lo)*sc; v=v<0?0:v>255?255:v; d[j]=v*0.92; d[j+1]=v*0.97; d[j+2]=v; d[j+3]=255;}
+  pctx.putImageData(psData,0,0);
+}
+
+function renderLow(level){
+  const L=LEV[level], p=L.field/N, ss=level<2?2:1, inv=1/(ss*ss);
+  for(let iy=0;iy<N;iy++) for(let ix=0;ix<N;ix++){
+    let v=0;
+    for(let a=0;a<ss;a++) for(let b=0;b<ss;b++){
+      const x=st.sx+(ix-H+(b+0.5)/ss-0.5)*p, y=st.sy+(iy-H+(a+0.5)/ss-0.5)*p/cosA;
+      if(level===0){const q=atlasI(x,y,cosA); v+=q<0?0:q;} else {sample(x,y); v+=I;}
+    }
+    img[iy*N+ix]=v*inv+gauss()*0.012;
+  }
+  visibleCount=0;
+  if(level===2){
+    const list=particlesIn(st.sx*1e4,st.sy*1e4,H*p*1e4,H*p*1e4/cosA);
+    for(const pt of list){
+      const px=(pt.x*1e-4-st.sx)/p+H, py=(pt.y*1e-4-st.sy)*cosA/p+H;
+      if(px<0||px>=N||py<0||py>=N) continue; visibleCount++;
+      const x0=Math.floor(px), y0=Math.floor(py);
+      for(let y=y0-1;y<=y0+1;y++) for(let x=x0-1;x<=x0+1;x++){ if(x<0||y<0||x>=N||y>=N)continue; const dx=x+0.5-px, dy=y+0.5-py; img[y*N+x]-=0.06*Math.exp(-(dx*dx+dy*dy)/0.7); }
+    }
+  }
+  blit(L.lo,L.hi);
+  drawPS(true);
+}
+
+function drawOverlay(){
+  const g=sctx, L=LEV[st.level];
+  g.save();
+  // field of the next magnification, as in an EPU-style targeting view
+  if(st.level<3){
+    const f=LEV[st.level+1].field/L.field*N, fh=f/cosA*cosA;
+    g.strokeStyle='rgba(147,212,255,.9)'; g.lineWidth=1;
+    g.strokeRect(H-f/2+0.5,H-fh/2+0.5,Math.max(3,f),Math.max(3,fh));
+  }
+  g.strokeStyle='rgba(212,139,87,.85)'; g.lineWidth=1; g.beginPath();
+  g.moveTo(H-12,H+0.5);g.lineTo(H-4,H+0.5);g.moveTo(H+4,H+0.5);g.lineTo(H+12,H+0.5);
+  g.moveTo(H+0.5,H-12);g.lineTo(H+0.5,H-4);g.moveTo(H+0.5,H+4);g.lineTo(H+0.5,H+12); g.stroke();
+  if(st.pick&&st.level===3){
+    g.strokeStyle='rgba(240,180,138,.95)'; g.lineWidth=1.3;
+    for(const pt of exParticles){ if(pt.ix<-25||pt.ix>N+25||pt.iy<-25||pt.iy>N+25) continue; g.beginPath(); g.arc(pt.ix,pt.iy,100/P,0,Math.PI*2); g.stroke(); }
+  }
+  const bl=L.bar/L.field*N;
+  g.fillStyle='rgba(8,10,14,.7)'; g.fillRect(8,N-26,bl+16,19);
+  g.fillStyle='#ebe6dc'; g.fillRect(16,N-12,bl,2.5);
+  g.font='500 8.5px "IBM Plex Mono", monospace'; g.textAlign='left'; g.fillText(L.barLabel,16,N-15);
+  g.restore();
+}
+
+function statusAt(){
+  const reg=sample(st.sx,st.sy), t=Math.round(T);
+  const el=$('#status'); let txt, cls;
+  if(reg===0){txt='Grid bar: copper blocks the beam';cls='bad';}
+  else if(reg===3){txt='Torn film: nothing to image';cls='bad';}
+  else if(reg===1){txt=`Carbon film, ice ~${t} nm. Particles sit in the holes`;cls='warn';}
+  else if(T0<2){txt='Empty hole: this square dried out';cls='bad';}
+  else if(T0<22){txt=`Ice ~${t} nm: too thin, particles pushed out`;cls='warn';}
+  else if(T>140){txt=`Ice ~${t} nm: thick, contrast suffers`;cls='warn';}
+  else {txt=`Ice ~${t} nm: good for data collection`;cls='good';}
+  el.textContent=txt; el.className='status '+cls;
+  $('#rIce').textContent=(reg===1||reg===2)?`${t} nm${st.tilt?' (along beam)':''}`:'—';
+}
+
+function renderScreen(){
+  if(st.level===3) renderExposure(); else {computeExField(); renderLow(st.level);}
+  drawOverlay(); statusAt();
+  $('#levelTag').textContent=`${LEV[st.level].name} · ${LEV[st.level].pix}/px`;
+  $('#rPos').textContent=`${st.sx.toFixed(st.level>1?2:0)}, ${st.sy.toFixed(st.level>1?2:0)} µm`;
+  $('#rPix').textContent=LEV[st.level].pix;
+  $('#rFov').textContent=LEV[st.level].fov;
+  $('#rN').textContent=st.level>=2?String(visibleCount):'—';
+  $('#rE').textContent=st.level===3?`${Math.round(st.dose*P*P)}`:'—';
+  if(detTex) detTex.needsUpdate=true;
+}
+
+/* ---------------- CTF plot ---------------- */
+function drawCTF(){
+  const c=$('#ctf'), w=c.clientWidth, h=c.clientHeight; if(!w) return;
+  const dpr=Math.min(2,devicePixelRatio||1);
+  if(c.width!==Math.round(w*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
+  const g=c.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h);
+  const kmax=1/(2*P), pl=8, pr=8, pt=8, pb=18, pw=w-pl-pr, ph=h-pt-pb, y0=pt+ph/2, dfA=st.df*1e4;
+  g.strokeStyle=css('--line'); g.lineWidth=1; g.beginPath(); g.moveTo(pl,y0+.5); g.lineTo(pl+pw,y0+.5); g.stroke();
+  g.fillStyle=css('--muted'); g.font='500 9px "IBM Plex Mono", monospace'; g.textAlign='center';
+  for(const r of [40,20,12,8]){const x=pl+(1/r)/kmax*pw; g.beginPath(); g.moveTo(x+.5,pt); g.lineTo(x+.5,pt+ph); g.globalAlpha=.35; g.stroke(); g.globalAlpha=1; g.fillText(r+' Å',Math.min(x,pl+pw-10),h-5);}
+  g.beginPath();
+  for(let px=0;px<=pw;px++){const k=px/pw*kmax, v=ctfW(k*k,dfA), y=y0-v*ph/2*0.94; px?g.lineTo(pl+px,y):g.moveTo(pl,y);}
+  g.lineTo(pl+pw,y0); g.lineTo(pl,y0); g.closePath(); g.fillStyle='rgba(212,139,87,.16)'; g.fill();
+  g.beginPath();
+  for(let px=0;px<=pw;px++){const k=px/pw*kmax, v=ctfW(k*k,dfA), y=y0-v*ph/2*0.94; px?g.lineTo(pl+px,y):g.moveTo(pl,y);}
+  g.strokeStyle=css('--copper'); g.lineWidth=1.6; g.stroke();
+  let z=null, prev=ctfW(0,dfA);
+  for(let i=1;i<=2000;i++){const k=i/2000*kmax, v=ctfW(k*k,dfA); if(prev>0&&v<=0){z=k;break;} prev=v;}
+  $('#zero').textContent=z?`first zero ${Math.round(1/z)} Å`:'no zero in range';
+}
+
+/* ---------------- 3D scene ---------------- */
+let detTex=null;
+const glEl=$('#gl'), sceneEl=$('#scene');
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
+renderer.setClearColor(0x0d1118,1);
+renderer.outputEncoding=THREE.sRGBEncoding;
+glEl.appendChild(renderer.domElement);
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x0d1118,26,48);
+const camera=new THREE.PerspectiveCamera(36,1,0.1,120);
+const CAM_HOME={t:new THREE.Vector3(0,3.4,0),p:new THREE.Vector3(8.8,10.8,13.9)};
+const PHIC=Math.atan2(CAM_HOME.p.x,CAM_HOME.p.z), PHI0=PHIC+Math.PI*0.25, PHIL=Math.PI*1.5;
+camera.position.copy(CAM_HOME.p);
+
+scene.add(new THREE.HemisphereLight(0xc4dcff,0x1c140e,0.75));
+const key=new THREE.DirectionalLight(0xffffff,0.95); key.position.set(7,12,9); scene.add(key);
+const rim=new THREE.DirectionalLight(0x93d4ff,0.45); rim.position.set(-8,3,-6); scene.add(rim);
+
+const M={
+  iron:new THREE.MeshStandardMaterial({color:0x3d4656,metalness:0.55,roughness:0.42,side:THREE.DoubleSide}),
+  ironCut:new THREE.MeshStandardMaterial({color:0x7a8495,metalness:0.25,roughness:0.65,side:THREE.DoubleSide}),
+  copper:new THREE.MeshStandardMaterial({color:0xc27a46,metalness:0.6,roughness:0.34,side:THREE.DoubleSide}),
+  ceramic:new THREE.MeshStandardMaterial({color:0x2a2f38,metalness:0.1,roughness:0.6,side:THREE.DoubleSide}),
+  ceramicCut:new THREE.MeshStandardMaterial({color:0x555c68,metalness:0.1,roughness:0.8,side:THREE.DoubleSide}),
+  steel:new THREE.MeshStandardMaterial({color:0x9aa3b0,metalness:0.7,roughness:0.3,side:THREE.DoubleSide})
+};
+(function windingTexture(){
+  const c=document.createElement('canvas'); c.width=c.height=32; const g=c.getContext('2d');
+  g.fillStyle='#8a4f2a'; g.fillRect(0,0,32,32); g.fillStyle='#e7a273';
+  for(let y=0;y<2;y++)for(let x=0;x<2;x++){g.beginPath();g.arc(8+16*x,8+16*y,6.2,0,Math.PI*2);g.fill();}
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(22,22); t.encoding=THREE.sRGBEncoding;
+  M.copperCut=new THREE.MeshStandardMaterial({map:t,metalness:0.35,roughness:0.5,side:THREE.DoubleSide});
+})();
+
+function revolve(profile,mat,capMat,s){
+  const pts=profile.map(([r,y])=>new THREE.Vector2(r*s,y*s));
+  const g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.LatheGeometry(pts,72,PHI0,PHIL),mat));
+  const capG=new THREE.ShapeGeometry(new THREE.Shape(pts.slice(0,-1)));
+  for(const phi of [PHI0,PHI0+PHIL]){const m=new THREE.Mesh(capG,capMat); m.rotation.y=phi-Math.PI/2; g.add(m);}
+  return g;
+}
+const YOKE=[[0.28,0.3],[1.1,0.3],[1.1,-0.3],[0.28,-0.3],[0.28,-0.07],[0.5,-0.2],[0.98,-0.2],[0.98,0.2],[0.5,0.2],[0.28,0.07],[0.28,0.3]];
+const COIL=[[0.55,0.16],[0.93,0.16],[0.93,-0.16],[0.55,-0.16],[0.55,0.16]];
+function makeLens(s){const g=new THREE.Group(); g.add(revolve(YOKE,M.iron,M.ironCut,s)); g.add(revolve(COIL,M.copper,M.copperCut,s)); scene.add(g); return g;}
+function makeAperture(){
+  const g=new THREE.Group();
+  const disc=new THREE.Mesh(new THREE.RingGeometry(0.035,0.42,48),M.steel); disc.rotation.x=-Math.PI/2; g.add(disc);
+  const arm=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.025,0.16),M.steel); arm.position.x=1.05; g.add(arm);
+  scene.add(g); return g;
+}
+
+const parts={};
+// gun
+parts.gun=(()=>{
+  const g=new THREE.Group();
+  g.add(revolve([[0,0.6],[0.42,0.6],[0.5,0.48],[0.5,-0.22],[0.36,-0.38],[0.12,-0.44],[0,-0.44],[0,0.6]],M.ceramic,M.ceramicCut,1));
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.3,16),new THREE.MeshBasicMaterial({color:0xcfe9ff})); tip.rotation.x=Math.PI; tip.position.y=-0.2; g.add(tip);
+  const anode=new THREE.Mesh(new THREE.RingGeometry(0.06,0.46,48),M.steel); anode.rotation.x=-Math.PI/2; anode.position.y=-0.56; g.add(anode);
+  const glow=new THREE.PointLight(0x93d4ff,0.8,5); glow.position.y=-0.4; g.add(glow);
+  scene.add(g); return g;
+})();
+parts.c1=makeLens(0.85); parts.c2=makeLens(0.85);
+parts.c2ap=makeAperture();
+parts.obj=makeLens(1.6);
+parts.objap=makeAperture();
+parts.p1=makeLens(0.95); parts.p2=makeLens(0.95);
+
+// detector with the live micrograph
+detTex=new THREE.CanvasTexture(scr); detTex.encoding=THREE.sRGBEncoding; detTex.minFilter=THREE.LinearFilter;
+parts.det=(()=>{
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.22,1.5),new THREE.MeshStandardMaterial({color:0x1b212b,metalness:0.4,roughness:0.5})); g.add(body);
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(1.2,1.2),new THREE.MeshBasicMaterial({map:detTex,toneMapped:false}));
+  face.rotation.x=-Math.PI/2; face.position.y=0.112; g.add(face);
+  scene.add(g); return g;
+})();
+
+// grid on the stage
+const GR=0.8, KS=GR/GRID_R;
+const atlasCanvas=document.createElement('canvas'); atlasCanvas.width=atlasCanvas.height=512;
+(function paintAtlas(){
+  const g=atlasCanvas.getContext('2d'), id=g.createImageData(512,512), d=id.data;
+  for(let v=0;v<512;v++) for(let u=0;u<512;u++){
+    let r=0,gg=0,b=0,a=0,cnt=0;
+    for(let s=0;s<4;s++){
+      const x=((u+(s&1?0.75:0.25))/512*2-1)*GRID_R, y=((v+(s&2?0.75:0.25))/512*2-1)*GRID_R;
+      if(x*x+y*y>GRID_R*GRID_R) continue; cnt++;
+      const q=atlasI(x,y,1);
+      if(q<0){const sh=0.85+0.15*hash(Math.floor(x/7),Math.floor(y/7),5); r+=208*sh; gg+=132*sh; b+=82*sh;}
+      else {const t=Math.min(1,Math.max(0,(q-0.3)/0.68)); r+=30+190*t; gg+=44+194*t; b+=60+196*t;}
+      a+=255;
+    }
+    const j=(v*512+u)*4; d[j]=cnt?r/cnt:0; d[j+1]=cnt?gg/cnt:0; d[j+2]=cnt?b/cnt:0; d[j+3]=a/4;
+  }
+  g.putImageData(id,0,0);
+})();
+const atlasTex=new THREE.CanvasTexture(atlasCanvas); atlasTex.encoding=THREE.sRGBEncoding; atlasTex.anisotropy=4;
+const gridOuter=new THREE.Group(); scene.add(gridOuter);
+const gridInner=new THREE.Group(); gridOuter.add(gridInner);
+const gridMesh=new THREE.Mesh(new THREE.CircleGeometry(GR,128),new THREE.MeshStandardMaterial({map:atlasTex,transparent:true,alphaTest:0.4,metalness:0.35,roughness:0.5,side:THREE.DoubleSide}));
+gridMesh.rotation.x=-Math.PI/2; gridInner.add(gridMesh);
+const gridRim=new THREE.Mesh(new THREE.TorusGeometry(GR,0.016,8,128),M.copper); gridRim.rotation.x=Math.PI/2; gridInner.add(gridRim);
+const cup=new THREE.Mesh(new THREE.TorusGeometry(GR+0.07,0.035,10,96),M.steel); cup.rotation.x=Math.PI/2; gridInner.add(cup);
+const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,3.4,20),M.steel); rod.rotation.z=Math.PI/2; rod.position.x=GR+0.07+1.7; gridInner.add(rod);
+const knob=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.5,24),M.ceramic); knob.rotation.z=Math.PI/2; knob.position.x=GR+3.7; gridInner.add(knob);
+const spotMat=new THREE.MeshBasicMaterial({color:0x93d4ff,transparent:true,opacity:0.55,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+const spot=new THREE.Mesh(new THREE.CircleGeometry(1,48),spotMat); spot.rotation.x=-Math.PI/2; spot.position.y=0.006; gridOuter.add(spot);
+const spotRing=new THREE.Mesh(new THREE.RingGeometry(0.92,1,64),new THREE.MeshBasicMaterial({color:0xcfe9ff,transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+spotRing.rotation.x=-Math.PI/2; spotRing.position.y=0.007; gridOuter.add(spotRing);
+
+// housing (assembled only)
+const housingMat=new THREE.MeshStandardMaterial({color:0x8d96a5,metalness:0.4,roughness:0.5,transparent:true,opacity:0.14,depthWrite:false,side:THREE.DoubleSide});
+const housing=new THREE.Mesh(new THREE.CylinderGeometry(1.95,1.95,9.4,64,1,true,PHI0,PHIL),housingMat); scene.add(housing);
+
+// in-focus plane
+const focusGroup=new THREE.Group(); scene.add(focusGroup);
+const fp=new THREE.Mesh(new THREE.CircleGeometry(1.05,64),new THREE.MeshBasicMaterial({color:0x93d4ff,transparent:true,opacity:0.08,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+fp.rotation.x=-Math.PI/2; focusGroup.add(fp);
+const fpr=new THREE.Mesh(new THREE.RingGeometry(1.03,1.06,96),new THREE.MeshBasicMaterial({color:0x93d4ff,transparent:true,opacity:0.7,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+fpr.rotation.x=-Math.PI/2; focusGroup.add(fpr);
+
+// electron rays and flowing electrons
+const NR=24, RAYPTS=12;
+const rayGeo=new THREE.BufferGeometry(); const rayPos=new Float32Array(NR*(RAYPTS-1)*2*3);
+rayGeo.setAttribute('position',new THREE.BufferAttribute(rayPos,3));
+scene.add(new THREE.LineSegments(rayGeo,new THREE.LineBasicMaterial({color:0x93d4ff,transparent:true,opacity:0.16,blending:THREE.AdditiveBlending,depthWrite:false})));
+const sprite=(()=>{const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d');const gr=g.createRadialGradient(16,16,0,16,16,16);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(0.35,'rgba(170,220,255,.6)');gr.addColorStop(1,'rgba(147,212,255,0)');g.fillStyle=gr;g.fillRect(0,0,32,32);return new THREE.CanvasTexture(c);})();
+const NE=520, eRay=new Uint8Array(NE), eT=new Float32Array(NE), ePos=new Float32Array(NE*3);
+for(let i=0;i<NE;i++){eRay[i]=Math.floor(Math.random()*NR);eT[i]=Math.random();}
+const eGeo=new THREE.BufferGeometry(); eGeo.setAttribute('position',new THREE.BufferAttribute(ePos,3));
+scene.add(new THREE.Points(eGeo,new THREE.PointsMaterial({map:sprite,color:0xbfe6ff,size:0.075,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})));
+
+// ice callout: what the beam sees in a 102 nm field
+const callout=new THREE.Group(); scene.add(callout);
+const slabMat=new THREE.MeshStandardMaterial({color:0x9cc8ea,transparent:true,opacity:0.16,roughness:0.15,metalness:0,depthWrite:false,side:THREE.DoubleSide});
+const slab=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),slabMat); callout.add(slab);
+const slabEdges=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1)),new THREE.LineBasicMaterial({color:0x93d4ff,transparent:true,opacity:0.55}));
+callout.add(slabEdges);
+const MAXI=40*VIS.length;
+const blobMesh=new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,7),new THREE.MeshStandardMaterial({color:0xffffff,metalness:0.1,roughness:0.5,emissive:0x1a0e06}),MAXI);
+blobMesh.count=0; callout.add(blobMesh);
+const CHAIN_COL=[0xf0b48a,0xd48b57,0xe9c9a4,0xb86f3e].map(c=>new THREE.Color(c));
+for(let i=0;i<MAXI;i++) blobMesh.setColorAt(i,CHAIN_COL[0]);
+const linkGeo=new THREE.BufferGeometry(); linkGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));
+const link=new THREE.Line(linkGeo,new THREE.LineBasicMaterial({color:0x93d4ff,transparent:true,opacity:0.45})); scene.add(link);
+const SW=1.4, SL=SW/1024;
+let slabH=0.5, slabText='';
+function updateSlab(){
+  const reg=sample(st.sx,st.sy), t0=T0;
+  const tmp=new THREE.Object3D(); let n=0;
+  if(reg===2&&t0>0){
+    slabH=Math.min(2.4,Math.max(0.04,t0*10*SL)); slabMat.color.set(0x9cc8ea); slabMat.opacity=0.16;
+    const pr=95*SL;
+    for(const p of exParticles){
+      const X=(p.x-exCenter.x)*SL, Z=(p.y-exCenter.y)*SL;
+      if(Math.abs(X)>SW/2-0.05||Math.abs(Z)>SW/2-0.05) continue;
+      const Y= slabH>2*pr ? -slabH/2+pr+(slabH-2*pr)*p.zf : 0;
+      const m=p.m;
+      for(const b of VIS){
+        if(n>=MAXI) break;
+        const bx=m[0]*b[0]+m[1]*b[1]+m[2]*b[2], by=m[3]*b[0]+m[4]*b[1]+m[5]*b[2], bz=m[6]*b[0]+m[7]*b[1]+m[8]*b[2];
+        tmp.position.set(X+bx*SL,Y-bz*SL,Z+by*SL); tmp.scale.setScalar(10*SL); tmp.updateMatrix();
+        blobMesh.setColorAt(n,CHAIN_COL[b[3]]); blobMesh.setMatrixAt(n++,tmp.matrix);
+      }
+    }
+    slabText=`Inside the hole · 102 × 102 nm · ice ${Math.round(t0)} nm`;
+  } else if(reg===1){slabH=Math.min(2.4,(t0+12)*10*SL); slabMat.color.set(0x7d8592); slabMat.opacity=0.45; slabText=`Carbon film under ${Math.round(t0)} nm of ice`;}
+  else if(reg===3||(reg===2&&t0<=0)){slabH=0.03; slabMat.color.set(0x9cc8ea); slabMat.opacity=0.05; slabText='Empty: no ice here';}
+  else {slabH=0.25; slabMat.color.set(0xc27a46); slabMat.opacity=0.85; slabText='Copper grid bar';}
+  blobMesh.count=n; blobMesh.instanceMatrix.needsUpdate=true; if(blobMesh.instanceColor) blobMesh.instanceColor.needsUpdate=true;
+  slab.scale.set(SW,slabH,SW); slabEdges.scale.set(SW,slabH,SW);
+  callout.rotation.x=st.tilt;
+}
+
+// layout tables: assembled vs exploded heights
+const YA={gun:7.6,c1:6.2,c2:5.2,c2ap:4.45,spec:3.25,obj:3.25,objap:2.45,p1:1.55,p2:0.6,det:-0.7};
+const YE={gun:9.1,c1:7.65,c2:6.35,c2ap:5.4,spec:3.6,obj:2.1,objap:1.1,p1:0.1,p2:-0.9,det:-2.15};
+const Y={};
+let eCur=1;
+function layout(e){
+  for(const k in YA) Y[k]=YA[k]+(YE[k]-YA[k])*e;
+  for(const k of ['gun','c1','c2','c2ap','obj','objap','p1','p2','det']) parts[k].position.y=Y[k];
+  gridOuter.position.set(0,Y.spec,0); gridOuter.rotation.x=st.tilt;
+  gridInner.position.set(-st.sx*KS,0,-st.sy*KS);
+  housingMat.opacity=0.14*(1-e); housing.visible=e<0.97; housing.position.y=3.55;
+  focusGroup.position.y=Y.spec+st.df*0.17;
+  const r=spotRadius(); spot.scale.setScalar(r); spotRing.scale.setScalar(r);
+  callout.position.set(-2.55,Y.spec+1.05+slabH*0.3,1.45);
+  callout.visible=st.level>=2;
+  link.visible=callout.visible;
+  const lp=link.geometry.attributes.position.array;
+  lp[0]=0;lp[1]=Y.spec;lp[2]=0; lp[3]=callout.position.x+SW*0.42; lp[4]=callout.position.y-slabH/2; lp[5]=callout.position.z;
+  link.geometry.attributes.position.needsUpdate=true;
+}
+function spotRadius(){return Math.max(0.035,Math.min(0.95,LEV[st.level].field/2*KS));}
+
+const rays=[];
+for(let i=0;i<NR;i++){const a=(i%12)/12*Math.PI*2+(i>=12?Math.PI/12:0); rays.push({c:Math.cos(a),s:Math.sin(a),f:i<12?1:0.55,pts:new Float32Array(RAYPTS*3)});}
+function updateRays(){
+  const rb=Math.max(0.1,Math.min(0.85,spotRadius()));
+  const ys=[Y.gun-0.42,Y.c1,(Y.c1+Y.c2)/2,Y.c2,Y.c2ap,Y.spec,Math.min(Y.spec-0.01,Y.obj),Y.objap,Y.p1,(Y.p1+Y.p2)/2,Y.p2,Y.det+0.12];
+  const rs=[0,0.4,-0.05,-(rb+0.06),-rb,-rb,-rb*0.92,0.03,0.36,-0.04,-0.32,-0.56];
+  let o=0;
+  for(const r of rays){
+    for(let j=0;j<RAYPTS;j++){const rr=rs[j]*r.f; r.pts[j*3]=r.c*rr; r.pts[j*3+1]=ys[j]; r.pts[j*3+2]=r.s*rr;}
+    for(let j=0;j<RAYPTS-1;j++){for(let q=0;q<6;q++) rayPos[o++]=r.pts[j*3+q];}
+  }
+  rayGeo.attributes.position.needsUpdate=true;
+}
+function updateElectrons(dt){
+  const sp=reduceMotion?0:0.11;
+  for(let i=0;i<NE;i++){
+    eT[i]=(eT[i]+dt*sp)%1; const r=rays[eRay[i]], s=eT[i]*(RAYPTS-1), j=Math.min(RAYPTS-2,Math.floor(s)), f=s-j, p=r.pts;
+    ePos[i*3]=p[j*3]+(p[j*3+3]-p[j*3])*f; ePos[i*3+1]=p[j*3+1]+(p[j*3+4]-p[j*3+1])*f; ePos[i*3+2]=p[j*3+2]+(p[j*3+5]-p[j*3+2])*f;
+  }
+  eGeo.attributes.position.needsUpdate=true;
+}
+
+// labels
+const labelLayer=$('#labels');
+function mkLabel(html,cls,fn){const el=document.createElement('div'); el.className='lbl'+(cls?' '+cls:''); el.innerHTML=html; labelLayer.appendChild(el); return {el,fn};}
+const labels=[
+  mkLabel('<b>Field-emission gun</b> · 300 kV','',()=>[0.62,Y.gun,0]),
+  mkLabel('<b>Condenser lenses</b> C1 · C2','',()=>[1.0,(Y.c1+Y.c2)/2,0]),
+  mkLabel('C2 aperture','',()=>[0.45,Y.c2ap,-0.3]),
+  mkLabel('<b>Cryo-grid</b> on the stage','',()=>[0.95,Y.spec+0.05,-0.75]),
+  mkLabel('<b>Objective lens</b>','',()=>[1.85,Y.obj,0]),
+  mkLabel('Objective aperture','',()=>[0.45,Y.objap,-0.3]),
+  mkLabel('<b>Projector lenses</b>','',()=>[1.1,(Y.p1+Y.p2)/2,0]),
+  mkLabel('<b>Direct electron detector</b>','',()=>[0.8,Y.det,0]),
+  mkLabel('','focus',()=>[-1.05,Y.spec+st.df*0.17,0]),
+  mkLabel('','callout',()=>[callout.position.x-SW/2,callout.position.y+slabH/2+0.12,callout.position.z])
+];
+const vtmp=new THREE.Vector3();
+function updateLabels(){
+  const w=glEl.clientWidth,h=glEl.clientHeight;
+  labels[8].el.textContent=`In-focus plane · Δf ${st.df.toFixed(1)} µm`;
+  labels[9].el.textContent=slabText;
+  labels[9].el.style.display=callout.visible?'':'none';
+  for(const L of labels){
+    if(L.el.style.display==='none') continue;
+    vtmp.set(...L.fn()).project(camera);
+    if(vtmp.z>1){L.el.style.opacity=0;continue;}
+    L.el.style.opacity=1;
+    L.el.style.transform=`translate(${((vtmp.x+1)/2*w).toFixed(1)}px,${((1-vtmp.y)/2*h).toFixed(1)}px) translate(-2px,-50%)`;
+  }
+}
+
+// camera + controls
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.target.copy(CAM_HOME.t); controls.enableDamping=true; controls.dampingFactor=0.08; controls.minDistance=2.5; controls.maxDistance=34;
+let tween=null;
+function flyTo(t,p){ if(reduceMotion){controls.target.copy(t);camera.position.copy(p);return;} tween={t0:controls.target.clone(),p0:camera.position.clone(),t1:t,p1:p,k:0}; }
+function stepTween(dt){ if(!tween)return; tween.k=Math.min(1,tween.k+dt*1.6); const e=tween.k<0.5?2*tween.k*tween.k:1-Math.pow(-2*tween.k+2,2)/2;
+  controls.target.lerpVectors(tween.t0,tween.t1,e); camera.position.lerpVectors(tween.p0,tween.p1,e); if(tween.k>=1)tween=null; }
+function gridViewPose(){const t=new THREE.Vector3(-1.1,Y.spec+0.55,0.6); return {t,p:t.clone().add(new THREE.Vector3(2.9,3.6,4.6))};}
+
+// dragging the grid in 3D
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), dragPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0), hit=new THREE.Vector3();
+let drag=null;
+function setNdc(e){const r=renderer.domElement.getBoundingClientRect(); ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1); ray.setFromCamera(ndc,camera);}
+glEl.addEventListener('pointerdown',e=>{
+  if(e.button!==0) return; setNdc(e);
+  const hits=ray.intersectObject(gridMesh,false);
+  if(hits.length){
+    controls.enabled=false; dragPlane.constant=-hits[0].point.y;
+    drag={id:e.pointerId,last:gridOuter.worldToLocal(hits[0].point.clone())};
+    glEl.setPointerCapture(e.pointerId); glEl.style.cursor='grabbing'; e.stopPropagation();
+  }
+},{capture:true});
+glEl.addEventListener('pointermove',e=>{
+  setNdc(e);
+  if(drag){
+    if(ray.ray.intersectPlane(dragPlane,hit)){
+      const l=gridOuter.worldToLocal(hit.clone());
+      moveStage(-(l.x-drag.last.x)/KS,-(l.z-drag.last.z)/KS); drag.last=l;
+    }
+  } else if(e.pointerType==='mouse'){ glEl.style.cursor=ray.intersectObject(gridMesh,false).length?'grab':''; }
+});
+function endDrag(e){ if(drag&&e.pointerId===drag.id){drag=null;controls.enabled=true;glEl.style.cursor='';} }
+glEl.addEventListener('pointerup',endDrag); glEl.addEventListener('pointercancel',endDrag);
+
+function clampStage(){const r=Math.hypot(st.sx,st.sy), m=GRID_R-RIM; if(r>m){st.sx*=m/r;st.sy*=m/r;}}
+function moveStage(dx,dy){st.sx+=dx;st.sy+=dy;clampStage();invalidate();}
+
+// detector panning & double-tap zoom
+let sdrag=null, lastTap=0;
+scr.addEventListener('pointerdown',e=>{
+  const now=performance.now(), r=scr.getBoundingClientRect();
+  if(now-lastTap<320&&st.level<3){
+    const f=LEV[st.level].field/r.width;
+    st.sx+=(e.clientX-r.left-r.width/2)*f; st.sy+=(e.clientY-r.top-r.height/2)*f/cosA; clampStage(); setLevel(st.level+1); lastTap=0; return;
+  }
+  lastTap=now; sdrag={x:e.clientX,y:e.clientY}; scr.setPointerCapture(e.pointerId);
+});
+scr.addEventListener('pointermove',e=>{
+  if(!sdrag) return; const r=scr.getBoundingClientRect(), f=LEV[st.level].field/r.width;
+  moveStage(-(e.clientX-sdrag.x)*f,-(e.clientY-sdrag.y)*f/cosA); sdrag={x:e.clientX,y:e.clientY};
+});
+scr.addEventListener('pointerup',()=>sdrag=null); scr.addEventListener('pointercancel',()=>sdrag=null);
+
+/* ---------------- controls wiring ---------------- */
+const magBtns=[...document.querySelectorAll('#mags button')];
+function setLevel(l){st.level=Math.max(0,Math.min(3,l)); magBtns.forEach((b,i)=>b.setAttribute('aria-pressed',String(i===st.level))); invalidate();}
+magBtns.forEach(b=>b.addEventListener('click',()=>setLevel(+b.dataset.l)));
+const dfR=$('#dfR'), doseR=$('#doseR'), tiltR=$('#tiltR');
+function setDf(v){st.df=Math.max(0,Math.min(4,Math.round(v*10)/10)); dfR.value=st.df; $('#dfO').textContent=st.df.toFixed(1)+' µm'; drawCTF(); dirtyImg=true;}
+dfR.addEventListener('input',()=>setDf(+dfR.value));
+doseR.addEventListener('input',()=>{st.dose=+doseR.value; $('#doseO').textContent=st.dose+' e⁻/Å²'; dirtyImg=true;});
+tiltR.addEventListener('input',()=>{st.tilt=+tiltR.value*Math.PI/180; cosA=Math.cos(st.tilt); $('#tiltO').textContent=tiltR.value+'°'; invalidate();});
+function toggle(btn,keyName){st[keyName]=!st[keyName]; btn.setAttribute('aria-pressed',String(st[keyName])); dirtyImg=true;}
+const bPick=$('#bPick'), bLP=$('#bLP');
+bPick.addEventListener('click',()=>toggle(bPick,'pick'));
+bLP.addEventListener('click',()=>toggle(bLP,'lp'));
+const bA=$('#bAssembled'), bE=$('#bExploded'), bV=$('#bView');
+function setExploded(v){st.exploded=v; bA.setAttribute('aria-pressed',String(!v)); bE.setAttribute('aria-pressed',String(v));}
+bA.addEventListener('click',()=>setExploded(false)); bE.addEventListener('click',()=>setExploded(true));
+function setGridView(v){st.gridView=v; bV.setAttribute('aria-pressed',String(v)); bV.textContent=v?'Back to the column':'Look at the grid';
+  if(v){setExploded(true); const tmp=Y.spec; Y.spec=YE.spec; const g=gridViewPose(); Y.spec=tmp; flyTo(g.t,g.p);} else flyTo(CAM_HOME.t.clone(),CAM_HOME.p.clone());}
+bV.addEventListener('click',()=>setGridView(!st.gridView));
+
+function findGoodHole(x0,y0,random){
+  const a0=Math.floor(x0/PITCH), b0=Math.floor(y0/PITCH), cands=[];
+  for(let rr=0;rr<16&&cands.length<(random?30:1);rr++){
+    for(let a=a0-rr;a<=a0+rr;a++) for(let b=b0-rr;b<=b0+rr;b++){
+      if(Math.max(Math.abs(a-a0),Math.abs(b-b0))!==rr) continue;
+      const cx=(a+0.5)*PITCH, cy=(b+0.5)*PITCH; if(cx*cx+cy*cy>(GRID_R-RIM-70)*(GRID_R-RIM-70)) continue;
+      const sq=sqInfo(a,b); if(sq.type!==0||sq.T<34||sq.T>80||sq.dens<0.75) continue;
+      const hi=Math.round((cx+(hash(a,b,21)-0.5)*30)/HP), hj=Math.round((cy+(hash(a,b,22)-0.5)*30)/HP);
+      const hx=hi*HP+0.16, hy=hj*HP-0.11;
+      if(sample(hx,hy)!==2||T0<26) continue;
+      if(random&&a===Math.floor(st.sx/PITCH)&&b===Math.floor(st.sy/PITCH)) continue;
+      cands.push([hx,hy]);
+    }
+  }
+  if(!cands.length) return null;
+  return random?cands[Math.floor(Math.random()*cands.length)]:cands[0];
+}
+$('#bFind').addEventListener('click',()=>{const h=findGoodHole(st.sx,st.sy,true); if(h){st.sx=h[0];st.sy=h[1];setLevel(3);}});
+
+addEventListener('keydown',e=>{
+  if(e.target.closest&&e.target.closest('input,textarea,select')) return;
+  if(e.metaKey||e.ctrlKey||e.altKey) return;
+  const k=e.key, f=LEV[st.level].field/8;
+  if(k>='1'&&k<='4'){setLevel(+k-1);}
+  else if(k==='['){setDf(st.df-0.1);} else if(k===']'){setDf(st.df+0.1);}
+  else if(k==='ArrowLeft'){moveStage(-f,0);} else if(k==='ArrowRight'){moveStage(f,0);}
+  else if(k==='ArrowUp'){moveStage(0,-f);} else if(k==='ArrowDown'){moveStage(0,f);}
+  else if(k==='p'||k==='P'){toggle(bPick,'pick');} else if(k==='l'||k==='L'){toggle(bLP,'lp');}
+  else if(k==='x'||k==='X'){setExploded(!st.exploded);} else if(k==='g'||k==='G'){setGridView(!st.gridView);}
+  else if(k==='h'||k==='H'){$('#bFind').click();}
+  else if(k==='r'||k==='R'){st.gridView=false;setGridView(false);}
+  else return;
+  if(k.startsWith('Arrow')) e.preventDefault();
+});
+
+/* ---------------- sizing & loop ---------------- */
+function resize(){const w=glEl.clientWidth,h=glEl.clientHeight; if(!w||!h)return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); drawCTF();}
+new ResizeObserver(resize).observe(glEl); new ResizeObserver(drawCTF).observe($('#ctf'));
+
+const start=findGoodHole(240,-160,false); if(start){st.sx=start[0];st.sy=start[1];}
+setLevel(3); setDf(st.df); setExploded(true);
+layout(1); resize();
+
+let last=performance.now();
+function tick(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  const target=st.exploded?1:0; eCur+=(target-eCur)*(reduceMotion?1:Math.min(1,dt*4)); if(Math.abs(target-eCur)<1e-3) eCur=target;
+  if(dirtyImg){renderScreen(); dirtyImg=false;}
+  if(dirtySlab){updateSlab(); dirtySlab=false;}
+  layout(eCur); updateRays(); updateElectrons(dt); stepTween(dt); controls.update();
+  renderer.render(scene,camera); updateLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+})();
+</script>
+
+</body></html>

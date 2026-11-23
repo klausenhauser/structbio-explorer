@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Structural Biology Explorer</title>
+<meta name="description" content="Interactive teaching pages for X-ray crystallography, cryo-EM and NMR.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#0a0c11;--panel:#11151c;--line:#252e3c;--fg:#ece7dd;--muted:#959cab;
+--x:#b98cff;--em:#93d4ff;--nmr:#ffc757;
+--display:"Bricolage Grotesque",system-ui,sans-serif;--body:"IBM Plex Sans",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg);margin:0}
+body{font:16px/1.55 var(--body);padding:48px max(16px,4vw) 64px;max-width:1120px;margin:0 auto}
+h1{font:700 clamp(2rem,5vw,3.2rem)/1.05 var(--display);margin:0 0 .4em;letter-spacing:-.02em}
+.lede{color:var(--muted);max-width:60ch;margin:0 0 40px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;border-top:3px solid var(--c)}
+section h2{font:700 1.5rem var(--display);margin:0 0 4px;color:var(--c)}
+section .tag{font:12px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+a.card{display:block;margin-top:16px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;color:var(--fg);text-decoration:none;transition:border-color .15s,transform .15s}
+a.card:hover,a.card:focus-visible{border-color:var(--c);transform:translateY(-2px)}
+a.card strong{font:600 1.05rem var(--display)}
+a.card p{margin:4px 0 6px;color:var(--muted);font-size:.92rem}
+a.card code{font:12px var(--mono);color:var(--c)}
+.soon{margin-top:16px;color:var(--muted);font-style:italic;font-size:.92rem}
+footer{margin-top:48px;color:var(--muted);font:12px var(--mono)}
+</style></head><body>
+<h1>Structural Biology Explorer</h1>
+<p class="lede">Interactive, in-browser walkthroughs of the three main methods for solving macromolecular structures. Each page runs fully in your browser and uses public reference data.</p>
+<div class="grid">
+<section style="--c:var(--x)"><span class="tag">Diffraction</span><h2>X-ray crystallography</h2>
+<!--XRAY--><p class="soon">Coming soon.</p></section>
+<section style="--c:var(--em)"><span class="tag">Imaging</span><h2>Cryo-EM</h2>
+<a class="card" href="cryoem/"><strong>Frozen in the Beam</strong><p>Walk down an opened-up electron microscope column and see how a single-particle map is built.</p><code>PDB 5A1A · β-galactosidase · UniProt P00722</code></a></section>
+<section style="--c:var(--nmr)"><span class="tag">Spectroscopy</span><h2>NMR</h2>
+<a class="card" href="nmr/"><strong>Ubiquitin at 800 MHz</strong><p>Drive a triple-resonance pulse sequence and walk the backbone through the resulting spectra.</p><code>PDB 1UBQ · BMRB 6457 · UniProt P0CG48</code></a></section>
+</div>
+<footer>v1.0 · Built for teaching. Structures and data from the PDB and BMRB.</footer>
+</body></html>
